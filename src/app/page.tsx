@@ -6,7 +6,6 @@ import { DeleteGameDialog } from "@/components/games/DeleteGameDialog";
 import { GameForm } from "@/components/games/GameForm";
 import { GameLibrary } from "@/components/games/GameLibrary";
 import { AppShell, type AppView } from "@/components/layout/AppShell";
-import { FloatingAddButton } from "@/components/layout/FloatingAddButton";
 import { ToastViewport } from "@/components/ui/Toast";
 import { useGames } from "@/hooks/useGames";
 import { useToast } from "@/hooks/useToast";
@@ -130,7 +129,7 @@ export default function Home() {
       setActiveView(view);
     }}>
       {activeView === "dashboard" ? (
-        <Dashboard games={games} isLoading={isLoading} onAddGame={openAddForm} onOpenLibrary={openLibrary} />
+        <Dashboard games={games} isLoading={isLoading} onOpenLibrary={openLibrary} />
       ) : null}
 
       {activeView === "library" ? (
@@ -142,7 +141,6 @@ export default function Home() {
           sortContext={librarySortContext}
           onFilterChange={setLibraryFilter}
           onSortChange={setLibrarySort}
-          onAddGame={openAddForm}
           onEditGame={handleEditGame}
           onDeleteGame={setDeletingGame}
         />
@@ -151,9 +149,6 @@ export default function Home() {
       {activeView === "form" ? (
         <GameForm key={editingGame?.id ?? "new-game"} editingGame={editingGame} onSubmit={handleSubmit} onCancel={handleCancelForm} />
       ) : null}
-
-      {activeView !== "form" ? <FloatingAddButton onClick={openAddForm} /> : null}
-
       <DeleteGameDialog game={deletingGame} onCancel={() => setDeletingGame(undefined)} onConfirm={handleConfirmDelete} />
       <ToastViewport toasts={toasts} onDismiss={dismissToast} />
     </AppShell>

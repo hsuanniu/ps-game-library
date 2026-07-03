@@ -1,4 +1,3 @@
-import { seedGames } from "@/data/mockGames";
 import type { Game } from "@/types/game";
 
 const STORAGE_KEY = "ps-game-library:v1";
@@ -12,8 +11,7 @@ export function loadGames(): Game[] {
     const stored = window.localStorage.getItem(STORAGE_KEY);
 
     if (!stored) {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(seedGames));
-      return seedGames;
+      return [];
     }
 
     const parsed = JSON.parse(stored);

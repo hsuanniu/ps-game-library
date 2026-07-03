@@ -1,21 +1,19 @@
 import { ChevronRight, Clock3, Disc3, Gamepad2, Heart } from "lucide-react";
-import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { StoreBagIcon } from "@/components/icons/StoreBagIcon";
 import { getGameStats } from "@/lib/gameStats";
-import { dashboardTerms, uiTerms } from "@/lib/terminology";
+import { dashboardTerms } from "@/lib/terminology";
 import { formatHours } from "@/lib/utils";
 import type { Game, LibraryFilter, LibrarySortContext } from "@/types/game";
 
 interface DashboardProps {
   games: Game[];
   isLoading: boolean;
-  onAddGame: () => void;
   onOpenLibrary: (options?: { filter?: LibraryFilter; sortContext?: LibrarySortContext }) => void;
 }
 
-export function Dashboard({ games, isLoading, onAddGame, onOpenLibrary }: DashboardProps) {
+export function Dashboard({ games, isLoading, onOpenLibrary }: DashboardProps) {
   const stats = getGameStats(games);
   const discCount = games.filter((game) => game.ownershipType === "disc").length;
   const digitalCount = games.filter((game) => game.ownershipType === "digital" || game.ownershipType === "ps_plus").length;
@@ -31,10 +29,6 @@ export function Dashboard({ games, isLoading, onAddGame, onOpenLibrary }: Dashbo
         </div>
       </div>
     );
-  }
-
-  if (!games.length) {
-    return <EmptyState title="目前還沒有遊戲" description="新增第一款吧，先填名稱、遊戲版本與狀態就能完成。" actionLabel={uiTerms.addGame} onAction={onAddGame} />;
   }
 
   return (
@@ -65,6 +59,13 @@ export function Dashboard({ games, isLoading, onAddGame, onOpenLibrary }: Dashbo
         <StatCard label={dashboardTerms.wishlist} value={stats.wishlist} icon={Heart} tone="rose" onClick={() => onOpenLibrary({ filter: "wishlist", sortContext: "wishlist" })} />
         <StatCard label={dashboardTerms.totalPlayTime} value={formatHours(stats.totalHours)} icon={Clock3} tone="amber" onClick={() => onOpenLibrary({ filter: "collection", sortContext: "playtime" })} />
       </section>
+
+      {!games.length ? (
+        <section className="glass-panel rounded-xl p-5 text-center">
+          <h2 className="text-lg font-bold text-white">目前還沒有任何遊戲</h2>
+          <p className="mt-2 text-sm leading-6 text-slate-400">點擊下方「新增遊戲」開始建立你的收藏。</p>
+        </section>
+      ) : null}
 
     </div>
   );

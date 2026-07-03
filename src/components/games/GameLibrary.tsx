@@ -15,12 +15,11 @@ interface GameLibraryProps {
   sortContext: LibrarySortContext;
   onFilterChange: (filter: LibraryFilter) => void;
   onSortChange: (sort: LibrarySort) => void;
-  onAddGame: () => void;
   onEditGame: (game: Game) => void;
   onDeleteGame: (game: Game) => void;
 }
 
-export function GameLibrary({ isLoading, filterGames, activeFilter, activeSort, sortContext, onFilterChange, onSortChange, onAddGame, onEditGame, onDeleteGame }: GameLibraryProps) {
+export function GameLibrary({ isLoading, filterGames, activeFilter, activeSort, sortContext, onFilterChange, onSortChange, onEditGame, onDeleteGame }: GameLibraryProps) {
   const [query, setQuery] = useState("");
 
   const filteredGames = useMemo(() => filterGames(activeFilter, query, activeSort), [activeFilter, activeSort, filterGames, query]);
@@ -45,7 +44,7 @@ export function GameLibrary({ isLoading, filterGames, activeFilter, activeSort, 
         <GameFilters activeFilter={activeFilter} query={query} onFilterChange={handleFilterChange} onQueryChange={setQuery} />
       </section>
 
-      <GameGrid games={filteredGames} isLoading={isLoading} onAddGame={onAddGame} onEditGame={onEditGame} onDeleteGame={onDeleteGame} />
+      <GameGrid games={filteredGames} isLoading={isLoading} onEditGame={onEditGame} onDeleteGame={onDeleteGame} />
     </div>
   );
 }

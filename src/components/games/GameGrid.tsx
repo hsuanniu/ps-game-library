@@ -1,18 +1,16 @@
 import { GameCard } from "@/components/games/GameCard";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { uiTerms } from "@/lib/terminology";
 import type { Game } from "@/types/game";
 
 interface GameGridProps {
   games: Game[];
   isLoading: boolean;
-  onAddGame: () => void;
   onEditGame: (game: Game) => void;
   onDeleteGame: (game: Game) => void;
 }
 
-export function GameGrid({ games, isLoading, onAddGame, onEditGame, onDeleteGame }: GameGridProps) {
+export function GameGrid({ games, isLoading, onEditGame, onDeleteGame }: GameGridProps) {
   if (isLoading) {
     return (
       <div className="grid gap-4">
@@ -24,7 +22,7 @@ export function GameGrid({ games, isLoading, onAddGame, onEditGame, onDeleteGame
   }
 
   if (!games.length) {
-    return <EmptyState title="沒有符合條件的遊戲" description="換個篩選條件，或新增第一款遊戲。" actionLabel={uiTerms.addGame} onAction={onAddGame} />;
+    return <EmptyState title="目前還沒有任何遊戲" description="點擊下方「新增遊戲」開始建立你的收藏。" />;
   }
 
   return (
