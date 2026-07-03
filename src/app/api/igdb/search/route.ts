@@ -7,6 +7,12 @@ interface TwitchTokenResponse {
   token_type: string;
 }
 
+interface ApiErrorPayload {
+  error: string;
+  message: string;
+  results: [];
+}
+
 interface IgdbGame {
   id: number;
   name: string;
@@ -180,7 +186,13 @@ async function getIgdbAccessToken(clientId: string, clientSecret: string) {
   });
 
   if (!response.ok) {
-    throw new Error("Failed to fetch Twitch token");
+    const errorText = await response.text();
+    console.error("[IGDB] OAuth token request failed", {
+      status: response.status,
+      statusText: response.statusText,
+      body: errorText.slice(0, 300),
+    });
+    throw new Error(`oauth_failed:${response.status}`);
   }
 
   const data = (await response.json()) as TwitchTokenResponse;
@@ -217,17 +229,26 @@ export async function GET(request: Request) {
   const clientId = process.env.IGDB_CLIENT_ID;
   const clientSecret = process.env.IGDB_CLIENT_SECRET;
 
+  console.log("[IGDB] Environment check", {
+    hasClientId: Boolean(clientId),
+    hasClientSecret: Boolean(clientSecret),
+  });
+
   if (!query) {
     return NextResponse.json({ results: [] });
   }
 
   if (!clientId || !clientSecret) {
+    console.error("[IGDB] Missing environment variables", {
+      hasClientId: Boolean(clientId),
+      hasClientSecret: Boolean(clientSecret),
+    });
     return NextResponse.json(
       {
         error: "missing_igdb_credentials",
-        message: "尚未設定 IGDB API，請先設定 Client ID / Client Secret",
+        message: "missing IGDB_CLIENT_ID or IGDB_CLIENT_SECRET",
         results: [],
-      },
+      } satisfies ApiErrorPayload,
       { status: 503 },
     );
   }
@@ -252,12 +273,18 @@ export async function GET(request: Request) {
     });
 
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error("[IGDB] Games API request failed", {
+        status: response.status,
+        statusText: response.statusText,
+        body: errorText.slice(0, 500),
+      });
       return NextResponse.json(
         {
           error: "igdb_api_error",
-          message: "搜尋失敗，請稍後再試",
+          message: `IGDB API error: ${response.status}`,
           results: [],
-        },
+        } satisfies ApiErrorPayload,
         { status: 502 },
       );
     }
@@ -267,13 +294,30 @@ export async function GET(request: Request) {
     return NextResponse.json({
       results: data.map(normalizeIgdbGame),
     });
-  } catch {
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "unknown_error";
+
+    console.error("[IGDB] Search route failed", {
+      message,
+    });
+
+    if (message.startsWith("oauth_failed")) {
+      return NextResponse.json(
+        {
+          error: "igdb_oauth_error",
+          message: "IGDB OAuth token request failed",
+          results: [],
+        } satisfies ApiErrorPayload,
+        { status: 502 },
+      );
+    }
+
     return NextResponse.json(
       {
         error: "igdb_api_error",
-        message: "搜尋失敗，請稍後再試",
+        message: "IGDB search failed",
         results: [],
-      },
+      } satisfies ApiErrorPayload,
       { status: 502 },
     );
   }

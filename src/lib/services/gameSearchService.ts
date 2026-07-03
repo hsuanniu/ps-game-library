@@ -34,13 +34,11 @@ export async function searchGames(query: string): Promise<GameSearchResult[]> {
 
   try {
     const response = await fetch(`/api/igdb/search?q=${encodeURIComponent(searchQuery)}`);
-    const data = (await response.json()) as {
-      results?: GameSearchResult[];
-      message?: string;
-    };
+    const data = await readSearchResponse(response);
 
     if (!response.ok) {
-      throw new GameSearchError(data.message ?? "搜尋失敗，請稍後再試", searchMockGames(searchQuery));
+      const fallbackResults = searchMockGames(searchQuery);
+      throw new GameSearchError(data.message ?? "搜尋失敗，請稍後再試", fallbackResults);
     }
 
     return data.results ?? [];
@@ -50,6 +48,23 @@ export async function searchGames(query: string): Promise<GameSearchResult[]> {
     }
 
     throw new GameSearchError("搜尋失敗，請稍後再試", searchMockGames(searchQuery));
+  }
+}
+
+async function readSearchResponse(response: Response): Promise<{
+  results?: GameSearchResult[];
+  message?: string;
+}> {
+  try {
+    return (await response.json()) as {
+      results?: GameSearchResult[];
+      message?: string;
+    };
+  } catch {
+    return {
+      message: `搜尋失敗（HTTP ${response.status}）`,
+      results: [],
+    };
   }
 }
 
