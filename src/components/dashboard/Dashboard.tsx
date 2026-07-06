@@ -1,4 +1,4 @@
-import { BarChart3, ChevronRight, Clock3, Disc3, Gamepad2, Heart } from "lucide-react";
+import { BarChart3, ChevronRight, Clock3, Disc3, Gamepad2, Heart, Sparkles } from "lucide-react";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { StoreBagIcon } from "@/components/icons/StoreBagIcon";
@@ -61,8 +61,8 @@ export function Dashboard({ games, isLoading, onOpenLibrary, onOpenInsights }: D
 
       <section className="glass-panel rounded-xl p-4">
         <div className="flex items-start gap-3">
-          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-indigo-400/14 text-lg">
-            🎮
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-indigo-400/14 text-indigo-200">
+            <Sparkles size={21} />
           </div>
           <div className="min-w-0">
             <p className="text-sm font-bold text-white">玩家風格</p>
