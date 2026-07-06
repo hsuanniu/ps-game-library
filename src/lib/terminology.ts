@@ -3,7 +3,7 @@ import type { GameStatus, LibraryFilter, OwnershipType } from "@/types/game";
 export const uiTerms = {
   myGames: "我的遊戲",
   brandSubtitle: "My Games",
-  yourCollection: "我的收藏",
+  yourCollection: "玩家風格",
   gameLibrary: "遊戲庫",
   addGame: "新增遊戲",
   editGame: "編輯遊戲",

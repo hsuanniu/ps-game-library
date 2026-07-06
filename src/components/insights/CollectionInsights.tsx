@@ -64,7 +64,7 @@ export function CollectionInsights({ games, onBack }: CollectionInsightsProps) {
     <section className="grid gap-4">
       <InsightsHeader onBack={onBack} />
 
-      <InsightCard icon={Sparkles} title="我的收藏 DNA">
+      <InsightCard icon={Sparkles} title="玩家風格">
         <p className="text-lg font-black leading-snug text-white">{dna.insight}</p>
         <div className="mt-4 grid grid-cols-2 gap-2">
           <DnaItem label="收藏總數" value={`${dna.total} 款`} />

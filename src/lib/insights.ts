@@ -140,8 +140,8 @@ export function getCollectionDna(games: Game[]): CollectionDna {
     totalPlayTime,
     completionRate: completion.rate,
     insight: games.length
-      ? `你是一位偏好 ${primaryPlatform} ${primaryOwnership}收藏的 ${primaryGenre} 玩家。`
-      : "新增更多遊戲後，這裡會顯示你的收藏偏好。",
+      ? `偏好 ${primaryPlatform} ${primaryOwnership}收藏的 ${primaryGenre} 玩家。`
+      : "新增更多遊戲後，這裡會顯示你的遊戲風格。",
   };
 }
 
