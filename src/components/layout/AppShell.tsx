@@ -2,6 +2,7 @@
 
 import { BarChart3, Library, Plus } from "lucide-react";
 import { AppLogo } from "@/components/layout/AppLogo";
+import { AppVersionInfo } from "@/components/layout/AppVersionInfo";
 import { uiTerms } from "@/lib/terminology";
 import { cn } from "@/lib/utils";
 
@@ -44,6 +45,7 @@ export function AppShell({ activeView, onViewChange, subtitle = uiTerms.brandSub
       </header>
 
       {children}
+      <AppVersionInfo />
 
       <nav className="fixed bottom-4 left-4 right-4 z-40 mx-auto max-w-[398px] rounded-xl border border-white/10 bg-slate-950/86 p-2 shadow-2xl shadow-black/30 backdrop-blur-xl">
         <div className="grid grid-cols-3 gap-1">
