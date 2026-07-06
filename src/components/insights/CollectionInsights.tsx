@@ -76,15 +76,15 @@ export function CollectionInsights({ games, onBack }: CollectionInsightsProps) {
         </div>
       </InsightCard>
 
-      <InsightCard icon={BarChart3} title="收藏類型分布" insight={`你的收藏以 ${genreDistribution[0]?.label ?? "未分類"} 遊戲為主。`}>
+      <InsightCard icon={BarChart3} title="收藏偏好" insight={`最愛收藏：${genreDistribution[0]?.label ?? "未分類"}遊戲`}>
         <HorizontalBars data={genreDistribution} unit="款" />
       </InsightCard>
 
-      <InsightCard icon={Clock3} title="遊玩時間 × 類型" insight={`你花最多時間在 ${playTimeByGenre[0]?.label ?? "未分類"} 遊戲。`}>
+      <InsightCard icon={Clock3} title="遊玩偏好" insight={`最多遊玩：${playTimeByGenre[0]?.label ?? "未分類"}遊戲`}>
         <HorizontalBars data={playTimeByGenre} unit="小時" />
       </InsightCard>
 
-      <InsightCard icon={Grid2X2} title="PS4 / PS5 × 光碟 / 數位" insight={`你的收藏以 ${matrixTop.label} ${matrixTop.sublabel}為主。`}>
+      <InsightCard icon={Grid2X2} title="收藏平台" insight={`主要收藏：${matrixTop.label} ${matrixTop.sublabel}`}>
         <div className="grid grid-cols-2 gap-2">
           {matrixItems.map((item) => (
             <div key={`${item.label}-${item.sublabel}`} className="rounded-lg border border-white/[0.07] bg-white/[0.045] p-3">
