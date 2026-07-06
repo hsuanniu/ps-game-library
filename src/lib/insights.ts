@@ -31,6 +31,10 @@ export interface CollectionDna {
   insight: string;
 }
 
+export interface PlayerStyle {
+  text: string;
+}
+
 export function getCollectionGames(games: Game[]) {
   return games.filter((game) => game.status !== "wishlist" && game.status !== "sold" && game.ownershipType !== "sold");
 }
@@ -138,6 +142,28 @@ export function getCollectionDna(games: Game[]): CollectionDna {
     insight: games.length
       ? `你是一位偏好 ${primaryPlatform} ${primaryOwnership}收藏的 ${primaryGenre} 玩家。`
       : "新增更多遊戲後，這裡會顯示你的收藏偏好。",
+  };
+}
+
+export function getPlayerStyle(games: Game[]): PlayerStyle {
+  if (!games.length) {
+    return {
+      text: "新增更多遊戲後，這裡會顯示你的遊戲風格。",
+    };
+  }
+
+  const ps5Total = games.filter((game) => game.platform === "PS5").length;
+  const ps4Total = games.filter((game) => game.platform === "PS4").length;
+  const digitalTotal = games.filter((game) => game.ownershipType === "digital" || game.ownershipType === "ps_plus").length;
+  const discTotal = games.filter((game) => game.ownershipType === "disc").length;
+  const genreDistribution = getGenreDistribution(games.filter((game) => game.genre?.length));
+  const platformLabel = ps5Total === ps4Total ? "PS4 / PS5" : ps5Total > ps4Total ? "PS5" : "PS4";
+  const ownershipLabel =
+    digitalTotal === discTotal ? "實體與數位並重" : digitalTotal > discTotal ? "數位收藏" : "實體收藏";
+  const genreLabel = genreDistribution[0]?.label ?? "多元類型";
+
+  return {
+    text: `你是一位偏好 ${platformLabel} ${ownershipLabel}的${genreLabel}玩家。`,
   };
 }
 

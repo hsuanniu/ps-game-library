@@ -3,6 +3,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { StoreBagIcon } from "@/components/icons/StoreBagIcon";
 import { getGameStats } from "@/lib/gameStats";
+import { getCollectionGames, getPlayerStyle } from "@/lib/insights";
 import { dashboardTerms } from "@/lib/terminology";
 import { formatHours } from "@/lib/utils";
 import type { Game, LibraryFilter, LibrarySortContext } from "@/types/game";
@@ -21,6 +22,7 @@ export function Dashboard({ games, isLoading, onOpenLibrary, onOpenInsights }: D
   const collectionInsight = stats.total
     ? `${Math.round((discCount / stats.total) * 100)}% 光碟 · ${Math.round((digitalCount / stats.total) * 100)}% 數位`
     : "尚未建立收藏";
+  const playerStyle = getPlayerStyle(getCollectionGames(games));
 
   if (isLoading) {
     return (
@@ -56,6 +58,18 @@ export function Dashboard({ games, isLoading, onOpenLibrary, onOpenInsights }: D
           </div>
         </div>
       </button>
+
+      <section className="glass-panel rounded-xl p-4">
+        <div className="flex items-start gap-3">
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-indigo-400/14 text-lg">
+            🎮
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-bold text-white">玩家風格</p>
+            <p className="mt-2 text-sm leading-6 text-slate-300">{playerStyle.text}</p>
+          </div>
+        </div>
+      </section>
 
       <section className="grid grid-cols-2 gap-3">
         <StatCard label={dashboardTerms.discEdition} value={discCount} icon={Disc3} onClick={() => onOpenLibrary({ filter: "disc", sortContext: "disc" })} />
