@@ -17,6 +17,9 @@ export function Dashboard({ games, isLoading, onOpenLibrary }: DashboardProps) {
   const stats = getGameStats(games);
   const discCount = games.filter((game) => game.ownershipType === "disc").length;
   const digitalCount = games.filter((game) => game.ownershipType === "digital" || game.ownershipType === "ps_plus").length;
+  const collectionInsight = stats.total
+    ? `${Math.round((discCount / stats.total) * 100)}% 光碟 · ${Math.round((digitalCount / stats.total) * 100)}% 數位`
+    : "尚未建立收藏";
 
   if (isLoading) {
     return (
@@ -48,7 +51,7 @@ export function Dashboard({ games, isLoading, onOpenLibrary }: DashboardProps) {
               <ChevronRight size={18} className="text-slate-500" />
             </div>
             <h2 className="mt-1 text-3xl font-black leading-none text-white">{stats.total} 款</h2>
-            <p className="mt-2 text-sm text-slate-400">{discCount} 光碟 · {digitalCount} 下載</p>
+            <p className="mt-2 text-sm text-slate-400">{collectionInsight}</p>
           </div>
         </div>
       </button>
