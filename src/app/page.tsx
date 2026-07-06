@@ -5,6 +5,7 @@ import { Dashboard } from "@/components/dashboard/Dashboard";
 import { DeleteGameDialog } from "@/components/games/DeleteGameDialog";
 import { GameForm } from "@/components/games/GameForm";
 import { GameLibrary } from "@/components/games/GameLibrary";
+import { CollectionInsights } from "@/components/insights/CollectionInsights";
 import { AppShell, type AppView } from "@/components/layout/AppShell";
 import { ToastViewport } from "@/components/ui/Toast";
 import { useGames } from "@/hooks/useGames";
@@ -79,6 +80,12 @@ export default function Home() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
 
+  const openInsights = useCallback(() => {
+    setEditingGame(undefined);
+    setActiveView("insights");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
+
   function handleEditGame(game: Game) {
     setEditingGame(game);
     setActiveView("form");
@@ -129,7 +136,7 @@ export default function Home() {
       setActiveView(view);
     }}>
       {activeView === "dashboard" ? (
-        <Dashboard games={games} isLoading={isLoading} onOpenLibrary={openLibrary} />
+        <Dashboard games={games} isLoading={isLoading} onOpenLibrary={openLibrary} onOpenInsights={openInsights} />
       ) : null}
 
       {activeView === "library" ? (
@@ -148,6 +155,10 @@ export default function Home() {
 
       {activeView === "form" ? (
         <GameForm key={editingGame?.id ?? "new-game"} editingGame={editingGame} onSubmit={handleSubmit} onCancel={handleCancelForm} />
+      ) : null}
+
+      {activeView === "insights" ? (
+        <CollectionInsights games={games} onBack={() => setActiveView("dashboard")} />
       ) : null}
       <DeleteGameDialog game={deletingGame} onCancel={() => setDeletingGame(undefined)} onConfirm={handleConfirmDelete} />
       <ToastViewport toasts={toasts} onDismiss={dismissToast} />

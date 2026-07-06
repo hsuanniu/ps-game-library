@@ -6,7 +6,7 @@ import { AppVersionInfo } from "@/components/layout/AppVersionInfo";
 import { uiTerms } from "@/lib/terminology";
 import { cn } from "@/lib/utils";
 
-export type AppView = "dashboard" | "library" | "form";
+export type AppView = "dashboard" | "library" | "form" | "insights";
 
 interface AppShellProps {
   activeView: AppView;
