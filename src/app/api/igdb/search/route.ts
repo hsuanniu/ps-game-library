@@ -76,7 +76,7 @@ function toCoverUrl(imageId?: string) {
     return undefined;
   }
 
-  return `https://images.igdb.com/igdb/image/upload/t_cover_big/${imageId}.jpg`;
+  return `https://images.igdb.com/igdb/image/upload/t_cover_big_2x/${imageId}.jpg`;
 }
 
 const ageRatingSystemPriority = ["PEGI", "ESRB", "CERO", "USK", "ACB"];

@@ -1,9 +1,9 @@
 "use client";
 
-import Image from "next/image";
 import { ChevronDown, ImageIcon, Search, Sparkles, Trash2, Upload } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { CoverImage } from "@/components/games/CoverImage";
 import { Field, inputClassName } from "@/components/ui/Field";
 import { platformOptions, visibleOwnershipOptions, visibleStatusOptions } from "@/lib/constants";
 import { formatGenreList } from "@/lib/gameMetadataDisplay";
@@ -324,7 +324,7 @@ export function GameForm({ editingGame, onSubmit, onCancel }: GameFormProps) {
                     className="flex items-center gap-3 rounded-lg p-2 text-left transition duration-200 hover:bg-white/[0.08] active:scale-[0.99]"
                   >
                     <div className="relative h-14 w-10 overflow-hidden rounded-md bg-white/[0.06]">
-                      {result.coverUrl ? <Image src={result.coverUrl} alt={result.title} fill className="object-cover" sizes="40px" /> : null}
+                      {result.coverUrl ? <CoverImage coverUrl={result.coverUrl} alt={result.title} className="object-cover" sizes="40px" /> : null}
                     </div>
                     <div>
                       <p className="font-semibold text-white">{result.title}</p>
@@ -343,7 +343,7 @@ export function GameForm({ editingGame, onSubmit, onCancel }: GameFormProps) {
             <div className="flex items-center gap-3">
               <div className="relative grid h-24 w-16 shrink-0 place-items-center overflow-hidden rounded-lg border border-white/10 bg-slate-950/80">
                 {form.coverUrl ? (
-                  <Image src={form.coverUrl} alt={form.title || "遊戲封面"} fill className="object-cover" sizes="64px" />
+                  <CoverImage coverUrl={form.coverUrl} alt={form.title || "遊戲封面"} className="object-cover" sizes="64px" />
                 ) : (
                   <div className="grid h-full w-full place-items-center bg-gradient-to-b from-slate-900 to-slate-950 text-slate-500">
                     <ImageIcon size={24} />

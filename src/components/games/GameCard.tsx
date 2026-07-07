@@ -1,6 +1,6 @@
-import Image from "next/image";
 import { Clock3, Edit3, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { CoverImage } from "@/components/games/CoverImage";
 import { ownershipLabels, platformLabels, statusLabels } from "@/lib/constants";
 import { formatTaiwanAgeRating, getTaiwanAgeRatingTone } from "@/lib/gameMetadataDisplay";
 import { uiTerms } from "@/lib/terminology";
@@ -35,7 +35,12 @@ export function GameCard({ game, onEdit, onDelete }: GameCardProps) {
     <article className="group overflow-hidden rounded-xl border border-white/10 bg-white/[0.055] shadow-lg shadow-black/10 transition duration-200 hover:-translate-y-1 hover:border-white/18 hover:bg-white/[0.075] hover:shadow-2xl hover:shadow-black/20">
       <div className="relative aspect-[4/3] overflow-hidden bg-slate-900">
         {game.coverUrl ? (
-          <Image src={game.coverUrl} alt={primaryTitle} fill className="object-cover transition duration-200 group-hover:scale-[1.03]" sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw" />
+          <CoverImage
+            coverUrl={game.coverUrl}
+            alt={primaryTitle}
+            className="object-cover transition duration-200 group-hover:scale-[1.03]"
+            sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
+          />
         ) : (
           <div className="grid h-full place-items-center text-sm font-semibold text-slate-500">No Cover</div>
         )}
