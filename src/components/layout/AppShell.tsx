@@ -22,15 +22,23 @@ const navItems = [
 ];
 
 export function AppShell({ activeView, onViewChange, subtitle = uiTerms.brandSubtitle, children }: AppShellProps) {
+  function handleHeroClick() {
+    if (activeView !== "dashboard") {
+      onViewChange("dashboard");
+    }
+  }
+
   return (
     <main className="mx-auto min-h-screen w-full max-w-[430px] px-4 pb-28 pt-5">
-      <header className="mb-5 flex items-center rounded-2xl border border-white/[0.06] bg-[linear-gradient(90deg,rgba(16,39,58,0.65),rgba(8,17,26,0.85))] px-3 py-3 shadow-md shadow-black/10">
+      <header className="mb-5">
         <button
-          className="flex min-w-0 items-center gap-2 rounded-xl py-0.5 pl-1.5 pr-3 text-left transition-colors duration-200 hover:bg-white/[0.035]"
-          onClick={() => onViewChange("dashboard")}
+          type="button"
+          aria-label="回到首頁"
+          onClick={handleHeroClick}
+          className="flex w-full cursor-pointer items-center gap-2 rounded-2xl border border-white/[0.06] bg-[linear-gradient(90deg,rgba(16,39,58,0.65),rgba(8,17,26,0.85))] px-4 py-3 text-left shadow-md shadow-black/10 transition duration-200 hover:-translate-y-0.5 hover:border-white/12 hover:bg-white/[0.035] hover:shadow-xl hover:shadow-black/15 active:scale-[0.985]"
         >
           <AppLogo />
-          <span className="min-w-0">
+          <span className="min-w-0 flex-1">
             <span className="block text-[0.64rem] font-bold uppercase tracking-[0.46em] text-emerald-300">
               PLAYSTATION
             </span>
