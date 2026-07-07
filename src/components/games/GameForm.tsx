@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, ImageIcon, Search, Sparkles, Trash2, Upload } from "lucide-react";
+import { ArrowLeft, Check, ChevronDown, ImageIcon, Search, Trash2, Upload } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { CoverImage } from "@/components/games/CoverImage";
@@ -16,6 +16,7 @@ interface GameFormProps {
   editingGame?: Game;
   onSubmit: (draft: GameDraft) => void;
   onCancel: () => void;
+  onDirtyChange?: (isDirty: boolean) => void;
 }
 
 interface FormState {
@@ -101,7 +102,8 @@ function normalizeVisibleOwnershipType(ownershipType: OwnershipType): OwnershipT
   return "digital";
 }
 
-export function GameForm({ editingGame, onSubmit, onCancel }: GameFormProps) {
+export function GameForm({ editingGame, onSubmit, onCancel, onDirtyChange }: GameFormProps) {
+  const initialState = useMemo(() => gameToState(editingGame), [editingGame]);
   const [form, setForm] = useState<FormState>(() => gameToState(editingGame));
   const [showMore, setShowMore] = useState(Boolean(editingGame));
   const [isManualMode, setIsManualMode] = useState(Boolean(editingGame?.displayTitle));
@@ -116,6 +118,12 @@ export function GameForm({ editingGame, onSubmit, onCancel }: GameFormProps) {
   const titleCanSearch = useMemo(() => form.title.trim().length >= 2, [form.title]);
   const isLoanStatus = form.status === "borrowed" || form.status === "rented";
   const loanPersonLabel = form.status === "borrowed" ? "借入對象" : "借出對象";
+  const isDirty = useMemo(() => JSON.stringify(form) !== JSON.stringify(initialState), [form, initialState]);
+  const showNewGameHint = !editingGame && !isDirty;
+
+  useEffect(() => {
+    onDirtyChange?.(isDirty);
+  }, [isDirty, onDirtyChange]);
 
   useEffect(() => {
     let ignore = false;
@@ -263,6 +271,7 @@ export function GameForm({ editingGame, onSubmit, onCancel }: GameFormProps) {
     }
 
     setError("");
+    onDirtyChange?.(false);
     onSubmit(toDraft());
     if (!editingGame) {
       setForm(defaultState);
@@ -275,6 +284,14 @@ export function GameForm({ editingGame, onSubmit, onCancel }: GameFormProps) {
     <form onSubmit={handleSubmit} className="grid gap-5">
       <section className="glass-panel rounded-xl p-4">
         <div className="mb-5">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="mb-4 inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm font-semibold text-slate-400 transition duration-200 hover:bg-white/[0.06] hover:text-white active:scale-[0.98]"
+          >
+            <ArrowLeft size={16} />
+            返回
+          </button>
           <p className="text-sm font-semibold text-emerald-300">{editingGame ? uiTerms.editGame : uiTerms.addGame}</p>
           <h2 className="mt-1 text-2xl font-bold text-white">{editingGame ? uiTerms.editGame : uiTerms.addGame}</h2>
         </div>
@@ -473,9 +490,14 @@ export function GameForm({ editingGame, onSubmit, onCancel }: GameFormProps) {
       <div className="flex flex-col-reverse gap-3">
         <Button type="button" variant="secondary" onClick={onCancel}>取消</Button>
         <Button type="submit">
-          <Sparkles size={18} />
-          {editingGame ? uiTerms.saveChanges : uiTerms.addGame}
+          <Check size={18} />
+          {editingGame ? "更新遊戲" : "儲存遊戲"}
         </Button>
+        {showNewGameHint ? (
+          <p className="-mt-1 text-center text-xs leading-5 text-slate-500">
+            搜尋遊戲後，系統會自動帶入封面與基本資料。
+          </p>
+        ) : null}
       </div>
     </form>
   );

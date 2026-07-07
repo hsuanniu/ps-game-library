@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { Dashboard } from "@/components/dashboard/Dashboard";
 import { DeleteGameDialog } from "@/components/games/DeleteGameDialog";
 import { GameForm } from "@/components/games/GameForm";
 import { GameLibrary } from "@/components/games/GameLibrary";
+import { UnsavedChangesDialog } from "@/components/games/UnsavedChangesDialog";
 import { CollectionInsights } from "@/components/insights/CollectionInsights";
 import { AppShell, type AppView } from "@/components/layout/AppShell";
 import { ToastViewport } from "@/components/ui/Toast";
@@ -57,14 +58,28 @@ export default function Home() {
   const [libraryFilter, setLibraryFilter] = useState<LibraryFilter>("all");
   const [librarySortContext, setLibrarySortContext] = useState<LibrarySortContext>("library");
   const [librarySort, setLibrarySortState] = useState<LibrarySort>(() => loadLibrarySort("library"));
+  const [formIsDirty, setFormIsDirty] = useState(false);
+  const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
+  const pendingNavigationRef = useRef<(() => void) | null>(null);
 
   const setLibrarySort = useCallback((sort: LibrarySort) => {
     setLibrarySortState(sort);
     window.localStorage.setItem(sortStorageKeys[librarySortContext], sort);
   }, [librarySortContext]);
 
+  const navigateWithUnsavedCheck = useCallback((action: () => void) => {
+    if (activeView === "form" && formIsDirty) {
+      pendingNavigationRef.current = action;
+      setShowUnsavedDialog(true);
+      return;
+    }
+
+    action();
+  }, [activeView, formIsDirty]);
+
   const openAddForm = useCallback(() => {
     setEditingGame(undefined);
+    setFormIsDirty(false);
     setActiveView("form");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
@@ -73,6 +88,7 @@ export default function Home() {
     const nextSortContext = options?.sortContext ?? "library";
 
     setEditingGame(undefined);
+    setFormIsDirty(false);
     setLibraryFilter(options?.filter ?? "all");
     setLibrarySortContext(nextSortContext);
     setLibrarySortState(loadLibrarySort(nextSortContext));
@@ -82,12 +98,14 @@ export default function Home() {
 
   const openInsights = useCallback(() => {
     setEditingGame(undefined);
+    setFormIsDirty(false);
     setActiveView("insights");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
 
   function handleEditGame(game: Game) {
     setEditingGame(game);
+    setFormIsDirty(false);
     setActiveView("form");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -102,12 +120,16 @@ export default function Home() {
     }
 
     setEditingGame(undefined);
+    setFormIsDirty(false);
     setActiveView("library");
   }
 
   function handleCancelForm() {
-    setEditingGame(undefined);
-    setActiveView("library");
+    navigateWithUnsavedCheck(() => {
+      setEditingGame(undefined);
+      setFormIsDirty(false);
+      setActiveView("library");
+    });
   }
 
   function handleConfirmDelete() {
@@ -120,21 +142,44 @@ export default function Home() {
     setDeletingGame(undefined);
   }
 
-  return (
-    <AppShell subtitle={uiTerms.brandSubtitle} activeView={activeView} onViewChange={(view) => {
-      if (view === "form") {
-        openAddForm();
-        return;
-      }
+  function handleConfirmLeaveForm() {
+    const action = pendingNavigationRef.current;
 
+    pendingNavigationRef.current = null;
+    setShowUnsavedDialog(false);
+    setFormIsDirty(false);
+    action?.();
+  }
+
+  function handleCancelLeaveForm() {
+    pendingNavigationRef.current = null;
+    setShowUnsavedDialog(false);
+  }
+
+  function handleViewChange(view: AppView) {
+    if (view === activeView) {
+      return;
+    }
+
+    if (view === "form") {
+      navigateWithUnsavedCheck(openAddForm);
+      return;
+    }
+
+    navigateWithUnsavedCheck(() => {
       setEditingGame(undefined);
+      setFormIsDirty(false);
       if (view === "library") {
         setLibraryFilter("all");
         setLibrarySortContext("library");
         setLibrarySortState(loadLibrarySort("library"));
       }
       setActiveView(view);
-    }}>
+    });
+  }
+
+  return (
+    <AppShell subtitle={uiTerms.brandSubtitle} activeView={activeView} onViewChange={handleViewChange}>
       {activeView === "dashboard" ? (
         <Dashboard games={games} isLoading={isLoading} onOpenLibrary={openLibrary} onOpenInsights={openInsights} />
       ) : null}
@@ -154,13 +199,20 @@ export default function Home() {
       ) : null}
 
       {activeView === "form" ? (
-        <GameForm key={editingGame?.id ?? "new-game"} editingGame={editingGame} onSubmit={handleSubmit} onCancel={handleCancelForm} />
+        <GameForm
+          key={editingGame?.id ?? "new-game"}
+          editingGame={editingGame}
+          onSubmit={handleSubmit}
+          onCancel={handleCancelForm}
+          onDirtyChange={setFormIsDirty}
+        />
       ) : null}
 
       {activeView === "insights" ? (
         <CollectionInsights games={games} onBack={() => setActiveView("dashboard")} />
       ) : null}
       <DeleteGameDialog game={deletingGame} onCancel={() => setDeletingGame(undefined)} onConfirm={handleConfirmDelete} />
+      <UnsavedChangesDialog isOpen={showUnsavedDialog} onCancel={handleCancelLeaveForm} onLeave={handleConfirmLeaveForm} />
       <ToastViewport toasts={toasts} onDismiss={dismissToast} />
     </AppShell>
   );
