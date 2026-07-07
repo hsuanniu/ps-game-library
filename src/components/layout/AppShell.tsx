@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart3, Library, Plus } from "lucide-react";
+import { BarChart3, Library, Plus, Save } from "lucide-react";
 import { AppLogo } from "@/components/layout/AppLogo";
 import { AppVersionInfo } from "@/components/layout/AppVersionInfo";
 import { uiTerms } from "@/lib/terminology";
@@ -12,6 +12,10 @@ interface AppShellProps {
   activeView: AppView;
   onViewChange: (view: AppView) => void;
   subtitle?: string;
+  formNavAction?: {
+    formId: string;
+    label: string;
+  };
   children: React.ReactNode;
 }
 
@@ -21,7 +25,7 @@ const navItems = [
   { view: "form" as const, label: uiTerms.addGame, icon: Plus },
 ];
 
-export function AppShell({ activeView, onViewChange, subtitle = uiTerms.brandSubtitle, children }: AppShellProps) {
+export function AppShell({ activeView, onViewChange, subtitle = uiTerms.brandSubtitle, formNavAction, children }: AppShellProps) {
   function handleHeroClick() {
     if (activeView !== "dashboard") {
       onViewChange("dashboard");
@@ -58,20 +62,23 @@ export function AppShell({ activeView, onViewChange, subtitle = uiTerms.brandSub
       <nav className="fixed bottom-4 left-4 right-4 z-40 mx-auto max-w-[398px] rounded-xl border border-white/10 bg-slate-950/86 p-2 shadow-2xl shadow-black/30 backdrop-blur-xl">
         <div className="grid grid-cols-3 gap-1">
           {navItems.map((item) => {
-            const Icon = item.icon;
+            const isFormAction = item.view === "form" && formNavAction;
+            const Icon = isFormAction ? Save : item.icon;
             const isActive = activeView === item.view;
 
             return (
               <button
                 key={item.view}
-                onClick={() => onViewChange(item.view)}
+                type={isFormAction ? "submit" : "button"}
+                form={isFormAction ? formNavAction.formId : undefined}
+                onClick={isFormAction ? undefined : () => onViewChange(item.view)}
                 className={cn(
                   "grid h-14 place-items-center rounded-lg text-xs font-semibold transition duration-200 active:scale-[0.97]",
                   isActive ? "bg-emerald-400 text-slate-950" : "text-slate-400 hover:bg-white/[0.08] hover:text-white",
                 )}
               >
                 <Icon size={18} />
-                {item.label}
+                {isFormAction ? formNavAction.label : item.label}
               </button>
             );
           })}

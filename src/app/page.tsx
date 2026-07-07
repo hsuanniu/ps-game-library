@@ -31,6 +31,8 @@ const defaultSortByContext: Record<LibrarySortContext, LibrarySort> = {
   playtime: "playtime-desc",
 };
 
+const GAME_FORM_ID = "game-form";
+
 function isValidSortForContext(sort: LibrarySort, context: LibrarySortContext) {
   return context !== "wishlist" || !sort.startsWith("playtime");
 }
@@ -179,7 +181,12 @@ export default function Home() {
   }
 
   return (
-    <AppShell subtitle={uiTerms.brandSubtitle} activeView={activeView} onViewChange={handleViewChange}>
+    <AppShell
+      subtitle={uiTerms.brandSubtitle}
+      activeView={activeView}
+      onViewChange={handleViewChange}
+      formNavAction={activeView === "form" && editingGame ? { formId: GAME_FORM_ID, label: "更新遊戲" } : undefined}
+    >
       {activeView === "dashboard" ? (
         <Dashboard games={games} isLoading={isLoading} onOpenLibrary={openLibrary} onOpenInsights={openInsights} />
       ) : null}
@@ -202,6 +209,7 @@ export default function Home() {
         <GameForm
           key={editingGame?.id ?? "new-game"}
           editingGame={editingGame}
+          formId={GAME_FORM_ID}
           onSubmit={handleSubmit}
           onCancel={handleCancelForm}
           onDirtyChange={setFormIsDirty}

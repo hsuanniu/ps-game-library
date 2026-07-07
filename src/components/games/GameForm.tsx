@@ -14,6 +14,7 @@ import type { AgeRating, Game, GameDraft, GameSearchResult, GameStatus, Ownershi
 
 interface GameFormProps {
   editingGame?: Game;
+  formId?: string;
   onSubmit: (draft: GameDraft) => void;
   onCancel: () => void;
   onDirtyChange?: (isDirty: boolean) => void;
@@ -102,7 +103,7 @@ function normalizeVisibleOwnershipType(ownershipType: OwnershipType): OwnershipT
   return "digital";
 }
 
-export function GameForm({ editingGame, onSubmit, onCancel, onDirtyChange }: GameFormProps) {
+export function GameForm({ editingGame, formId, onSubmit, onCancel, onDirtyChange }: GameFormProps) {
   const initialState = useMemo(() => gameToState(editingGame), [editingGame]);
   const [form, setForm] = useState<FormState>(() => gameToState(editingGame));
   const [showMore, setShowMore] = useState(Boolean(editingGame));
@@ -281,7 +282,7 @@ export function GameForm({ editingGame, onSubmit, onCancel, onDirtyChange }: Gam
   }
 
   return (
-    <form onSubmit={handleSubmit} className="grid gap-5">
+    <form id={formId} onSubmit={handleSubmit} className="grid gap-5">
       <section className="glass-panel rounded-xl p-4">
         <div className="mb-5">
           <button
