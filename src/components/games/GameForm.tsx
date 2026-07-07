@@ -110,6 +110,7 @@ export function GameForm({ editingGame, formId, onSubmit, onCancel, onDirtyChang
   const [isManualMode, setIsManualMode] = useState(Boolean(editingGame?.displayTitle));
   const [error, setError] = useState("");
   const [results, setResults] = useState<GameSearchResult[]>([]);
+  const [selectedGame, setSelectedGame] = useState<GameSearchResult | undefined>();
   const [isSearching, setIsSearching] = useState(false);
   const [searchMessage, setSearchMessage] = useState("");
   const [hasNoSearchResults, setHasNoSearchResults] = useState(false);
@@ -130,6 +131,10 @@ export function GameForm({ editingGame, formId, onSubmit, onCancel, onDirtyChang
     let ignore = false;
 
     async function runSearch() {
+      if (selectedGame && form.title.trim() === selectedGame.title.trim()) {
+        return;
+      }
+
       if (!titleCanSearch || isManualMode) {
         setResults([]);
         setSearchMessage("");
@@ -171,7 +176,7 @@ export function GameForm({ editingGame, formId, onSubmit, onCancel, onDirtyChang
       ignore = true;
       window.clearTimeout(timer);
     };
-  }, [form.title, isManualMode, titleCanSearch]);
+  }, [form.title, isManualMode, selectedGame, titleCanSearch]);
 
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((current) => ({
@@ -180,7 +185,13 @@ export function GameForm({ editingGame, formId, onSubmit, onCancel, onDirtyChang
     }));
   }
 
+  function handleTitleChange(value: string) {
+    setSelectedGame(undefined);
+    update("title", value);
+  }
+
   function applySearchResult(result: GameSearchResult) {
+    setSelectedGame(result);
     setForm((current) => ({
       ...current,
       title: result.title,
@@ -197,6 +208,7 @@ export function GameForm({ editingGame, formId, onSubmit, onCancel, onDirtyChang
   }
 
   function enterManualMode() {
+    setSelectedGame(undefined);
     setIsManualMode(true);
     setShowMore(true);
     setResults([]);
@@ -276,6 +288,7 @@ export function GameForm({ editingGame, formId, onSubmit, onCancel, onDirtyChang
     onSubmit(toDraft());
     if (!editingGame) {
       setForm(defaultState);
+      setSelectedGame(undefined);
       setShowMore(false);
       setIsManualMode(false);
     }
@@ -304,7 +317,7 @@ export function GameForm({ editingGame, formId, onSubmit, onCancel, onDirtyChang
               <input
                 className={inputClassName("pl-10")}
                 value={form.title}
-                onChange={(event) => update("title", event.target.value)}
+                onChange={(event) => handleTitleChange(event.target.value)}
                 placeholder="例如：Final Fantasy VII Rebirth"
               />
             </div>
