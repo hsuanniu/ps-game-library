@@ -103,6 +103,40 @@ function normalizeVisibleOwnershipType(ownershipType: OwnershipType): OwnershipT
   return "digital";
 }
 
+function parseOptionalNumber(value: string) {
+  return value.trim() ? Number(value) : null;
+}
+
+function parseGenreInput(value: string) {
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function formToComparableData(form: FormState) {
+  const shouldKeepLoanPerson = form.status === "borrowed" || form.status === "rented";
+
+  return {
+    title: form.title.trim(),
+    displayTitle: form.displayTitle.trim(),
+    coverUrl: form.coverUrl.trim(),
+    platform: form.platform,
+    status: form.status,
+    ownershipType: form.ownershipType,
+    playTimeHours: parseOptionalNumber(form.playTimeHours),
+    purchasePrice: parseOptionalNumber(form.purchasePrice),
+    purchaseDate: form.purchaseDate,
+    seriesName: form.seriesName.trim(),
+    seriesOrder: parseOptionalNumber(form.seriesOrder),
+    genre: parseGenreInput(form.genre),
+    ageRating: form.ageRating ?? null,
+    isCompleted: form.isCompleted,
+    loanPerson: shouldKeepLoanPerson ? form.loanPerson.trim() : "",
+    notes: form.notes.trim(),
+  };
+}
+
 export function GameForm({ editingGame, formId, onSubmit, onCancel, onDirtyChange }: GameFormProps) {
   const initialState = useMemo(() => gameToState(editingGame), [editingGame]);
   const [form, setForm] = useState<FormState>(() => gameToState(editingGame));
@@ -120,7 +154,9 @@ export function GameForm({ editingGame, formId, onSubmit, onCancel, onDirtyChang
   const titleCanSearch = useMemo(() => form.title.trim().length >= 2, [form.title]);
   const isLoanStatus = form.status === "borrowed" || form.status === "rented";
   const loanPersonLabel = form.status === "borrowed" ? "借入對象" : "借出對象";
-  const isDirty = useMemo(() => JSON.stringify(form) !== JSON.stringify(initialState), [form, initialState]);
+  const originalData = useMemo(() => formToComparableData(initialState), [initialState]);
+  const currentData = useMemo(() => formToComparableData(form), [form]);
+  const isDirty = useMemo(() => JSON.stringify(currentData) !== JSON.stringify(originalData), [currentData, originalData]);
   const showNewGameHint = !editingGame && !isDirty;
 
   useEffect(() => {
@@ -264,10 +300,7 @@ export function GameForm({ editingGame, formId, onSubmit, onCancel, onDirtyChang
       purchaseDate: form.purchaseDate || undefined,
       seriesName: form.seriesName.trim() || undefined,
       seriesOrder: form.seriesOrder ? Number(form.seriesOrder) : undefined,
-      genre: form.genre
-        .split(",")
-        .map((item) => item.trim())
-        .filter(Boolean),
+      genre: parseGenreInput(form.genre),
       ageRating: form.ageRating,
       isCompleted: form.isCompleted,
       loanPerson: isLoanStatus ? form.loanPerson.trim() || undefined : undefined,
