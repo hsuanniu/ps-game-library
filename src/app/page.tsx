@@ -185,12 +185,15 @@ export default function Home() {
     form?.requestSubmit();
   }
 
+  const isEditingGame = activeView === "form" && editingGame !== undefined;
+  const editFormNavAction = isEditingGame ? { label: "更新遊戲", onClick: submitCurrentGameForm } : undefined;
+
   return (
     <AppShell
       subtitle={uiTerms.brandSubtitle}
       activeView={activeView}
       onViewChange={handleViewChange}
-      formNavAction={activeView === "form" && editingGame ? { label: "更新遊戲", onClick: submitCurrentGameForm } : undefined}
+      formNavAction={editFormNavAction}
     >
       {activeView === "dashboard" ? (
         <Dashboard games={games} isLoading={isLoading} onOpenLibrary={openLibrary} onOpenInsights={openInsights} />

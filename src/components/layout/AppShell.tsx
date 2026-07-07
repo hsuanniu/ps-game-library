@@ -62,7 +62,8 @@ export function AppShell({ activeView, onViewChange, subtitle = uiTerms.brandSub
       <nav className="fixed bottom-4 left-4 right-4 z-40 mx-auto max-w-[398px] rounded-xl border border-white/10 bg-slate-950/86 p-2 shadow-2xl shadow-black/30 backdrop-blur-xl">
         <div className="grid grid-cols-3 gap-1">
           {navItems.map((item) => {
-            const isFormAction = item.view === "form" && formNavAction;
+            const formAction = item.view === "form" ? formNavAction : undefined;
+            const isFormAction = formAction !== undefined;
             const Icon = isFormAction ? Check : item.icon;
             const isActive = activeView === item.view;
 
@@ -70,14 +71,15 @@ export function AppShell({ activeView, onViewChange, subtitle = uiTerms.brandSub
               <button
                 key={item.view}
                 type="button"
-                onClick={isFormAction ? formNavAction.onClick : () => onViewChange(item.view)}
+                aria-label={isFormAction ? formAction.label : item.label}
+                onClick={isFormAction ? formAction.onClick : () => onViewChange(item.view)}
                 className={cn(
                   "grid h-14 place-items-center rounded-lg text-xs font-semibold transition duration-200 active:scale-[0.97]",
                   isActive ? "bg-emerald-400 text-slate-950" : "text-slate-400 hover:bg-white/[0.08] hover:text-white",
                 )}
               >
                 <Icon size={18} />
-                {isFormAction ? formNavAction.label : item.label}
+                {isFormAction ? formAction.label : item.label}
               </button>
             );
           })}
