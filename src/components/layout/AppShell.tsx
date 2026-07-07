@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart3, Library, Plus, Save } from "lucide-react";
+import { BarChart3, Check, Library, Plus } from "lucide-react";
 import { AppLogo } from "@/components/layout/AppLogo";
 import { AppVersionInfo } from "@/components/layout/AppVersionInfo";
 import { uiTerms } from "@/lib/terminology";
@@ -13,8 +13,8 @@ interface AppShellProps {
   onViewChange: (view: AppView) => void;
   subtitle?: string;
   formNavAction?: {
-    formId: string;
     label: string;
+    onClick: () => void;
   };
   children: React.ReactNode;
 }
@@ -63,15 +63,14 @@ export function AppShell({ activeView, onViewChange, subtitle = uiTerms.brandSub
         <div className="grid grid-cols-3 gap-1">
           {navItems.map((item) => {
             const isFormAction = item.view === "form" && formNavAction;
-            const Icon = isFormAction ? Save : item.icon;
+            const Icon = isFormAction ? Check : item.icon;
             const isActive = activeView === item.view;
 
             return (
               <button
                 key={item.view}
-                type={isFormAction ? "submit" : "button"}
-                form={isFormAction ? formNavAction.formId : undefined}
-                onClick={isFormAction ? undefined : () => onViewChange(item.view)}
+                type="button"
+                onClick={isFormAction ? formNavAction.onClick : () => onViewChange(item.view)}
                 className={cn(
                   "grid h-14 place-items-center rounded-lg text-xs font-semibold transition duration-200 active:scale-[0.97]",
                   isActive ? "bg-emerald-400 text-slate-950" : "text-slate-400 hover:bg-white/[0.08] hover:text-white",

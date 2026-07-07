@@ -180,12 +180,17 @@ export default function Home() {
     });
   }
 
+  function submitCurrentGameForm() {
+    const form = document.getElementById(GAME_FORM_ID) as HTMLFormElement | null;
+    form?.requestSubmit();
+  }
+
   return (
     <AppShell
       subtitle={uiTerms.brandSubtitle}
       activeView={activeView}
       onViewChange={handleViewChange}
-      formNavAction={activeView === "form" && editingGame ? { formId: GAME_FORM_ID, label: "更新遊戲" } : undefined}
+      formNavAction={activeView === "form" && editingGame ? { label: "更新遊戲", onClick: submitCurrentGameForm } : undefined}
     >
       {activeView === "dashboard" ? (
         <Dashboard games={games} isLoading={isLoading} onOpenLibrary={openLibrary} onOpenInsights={openInsights} />
