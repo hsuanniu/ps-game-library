@@ -1,4 +1,4 @@
-import { BarChart3, ChevronRight, Clock3, Disc3, Gamepad2, Heart, Sparkles } from "lucide-react";
+import { ChevronRight, Clock3, Disc3, Gamepad2, Heart, Sparkles } from "lucide-react";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { StoreBagIcon } from "@/components/icons/StoreBagIcon";
@@ -59,17 +59,24 @@ export function Dashboard({ games, isLoading, onOpenLibrary, onOpenInsights }: D
         </div>
       </button>
 
-      <section className="glass-panel rounded-xl p-4">
+      <button
+        type="button"
+        onClick={onOpenInsights}
+        className="glass-panel rounded-xl p-4 text-left transition duration-200 hover:-translate-y-0.5 hover:border-white/14 hover:bg-white/[0.035] active:scale-[0.985]"
+      >
         <div className="flex items-start gap-3">
           <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-indigo-400/14 text-indigo-200">
             <Sparkles size={21} />
           </div>
-          <div className="min-w-0">
-            <p className="text-sm font-bold text-white">玩家風格</p>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm font-bold text-white">玩家風格</p>
+              <ChevronRight size={18} className="shrink-0 text-slate-500" />
+            </div>
             <p className="mt-2 text-sm leading-6 text-slate-300">{playerStyle.text}</p>
           </div>
         </div>
-      </section>
+      </button>
 
       <section className="grid grid-cols-2 gap-3">
         <StatCard label={dashboardTerms.discEdition} value={discCount} icon={Disc3} onClick={() => onOpenLibrary({ filter: "disc", sortContext: "disc" })} />
@@ -77,21 +84,6 @@ export function Dashboard({ games, isLoading, onOpenLibrary, onOpenInsights }: D
         <StatCard label={dashboardTerms.wishlist} value={stats.wishlist} icon={Heart} tone="rose" onClick={() => onOpenLibrary({ filter: "wishlist", sortContext: "wishlist" })} />
         <StatCard label={dashboardTerms.totalPlayTime} value={formatHours(stats.totalHours)} icon={Clock3} tone="amber" onClick={() => onOpenLibrary({ filter: "collection", sortContext: "playtime" })} />
       </section>
-
-      <button
-        type="button"
-        onClick={onOpenInsights}
-        className="glass-panel flex items-center gap-3 rounded-xl p-4 text-left transition duration-200 hover:-translate-y-0.5 hover:border-white/14 hover:bg-white/[0.035] active:scale-[0.985]"
-      >
-        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-indigo-400/14 text-indigo-200">
-          <BarChart3 size={21} />
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-bold text-white">收藏分析</p>
-          <p className="mt-1 text-xs leading-5 text-slate-400">看看你的收藏偏好與完成率</p>
-        </div>
-        <ChevronRight size={18} className="shrink-0 text-slate-500" />
-      </button>
 
       {!games.length ? (
         <section className="glass-panel rounded-xl p-5 text-center">
