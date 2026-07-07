@@ -494,6 +494,9 @@ export function GameForm({ editingGame, formId, onSubmit, onCancel, onDirtyChang
           <Check size={18} />
           {editingGame ? "更新遊戲" : "儲存遊戲"}
         </Button>
+        <p className="-mb-1 text-center text-xs leading-5 text-slate-500">
+          填寫完成後，請按下方的{editingGame ? "更新遊戲" : "儲存遊戲"}。
+        </p>
         {showNewGameHint ? (
           <p className="-mt-1 text-center text-xs leading-5 text-slate-500">
             搜尋遊戲後，系統會自動帶入封面與基本資料。

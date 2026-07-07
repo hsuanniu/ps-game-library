@@ -62,24 +62,29 @@ export function AppShell({ activeView, onViewChange, subtitle = uiTerms.brandSub
       <nav className="fixed bottom-4 left-4 right-4 z-40 mx-auto max-w-[398px] rounded-xl border border-white/10 bg-slate-950/86 p-2 shadow-2xl shadow-black/30 backdrop-blur-xl">
         <div className="grid grid-cols-3 gap-1">
           {navItems.map((item) => {
-            const formAction = item.view === "form" ? formNavAction : undefined;
+            const isFormItem = item.view === "form";
+            const formAction = isFormItem ? formNavAction : undefined;
             const isFormAction = formAction !== undefined;
+            const isFormInProgress = isFormItem && activeView === "form" && !isFormAction;
             const Icon = isFormAction ? Check : item.icon;
-            const isActive = activeView === item.view;
+            const isActive = activeView === item.view && !isFormInProgress;
+            const label = isFormAction ? formAction.label : isFormInProgress ? "填寫中" : item.label;
 
             return (
               <button
                 key={item.view}
                 type="button"
-                aria-label={isFormAction ? formAction.label : item.label}
+                aria-label={label}
+                disabled={isFormInProgress}
                 onClick={isFormAction ? formAction.onClick : () => onViewChange(item.view)}
                 className={cn(
                   "grid h-14 place-items-center rounded-lg text-xs font-semibold transition duration-200 active:scale-[0.97]",
                   isActive ? "bg-emerald-400 text-slate-950" : "text-slate-400 hover:bg-white/[0.08] hover:text-white",
+                  isFormInProgress && "cursor-default bg-white/[0.04] text-slate-500 hover:bg-white/[0.04] hover:text-slate-500 active:scale-100",
                 )}
               >
                 <Icon size={18} />
-                {isFormAction ? formAction.label : item.label}
+                {label}
               </button>
             );
           })}
