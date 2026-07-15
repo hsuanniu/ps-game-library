@@ -2,8 +2,9 @@ import { ChevronRight, Clock3, Disc3, Gamepad2, Heart, Sparkles } from "lucide-r
 import { Skeleton } from "@/components/ui/Skeleton";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { StoreBagIcon } from "@/components/icons/StoreBagIcon";
+import { getCollectionGames } from "@/lib/gameCollection";
 import { getGameStats } from "@/lib/gameStats";
-import { getCollectionGames, getPlayerStyle } from "@/lib/insights";
+import { getPlayerStyle } from "@/lib/insights";
 import { dashboardTerms } from "@/lib/terminology";
 import { formatHours } from "@/lib/utils";
 import type { Game, LibraryFilter, LibrarySortContext } from "@/types/game";
@@ -17,12 +18,13 @@ interface DashboardProps {
 
 export function Dashboard({ games, isLoading, onOpenLibrary, onOpenInsights }: DashboardProps) {
   const stats = getGameStats(games);
-  const discCount = games.filter((game) => game.ownershipType === "disc").length;
-  const digitalCount = games.filter((game) => game.ownershipType === "digital" || game.ownershipType === "ps_plus").length;
+  const collectionGames = getCollectionGames(games);
+  const discCount = collectionGames.filter((game) => game.ownershipType === "disc").length;
+  const digitalCount = collectionGames.filter((game) => game.ownershipType === "digital" || game.ownershipType === "ps_plus").length;
   const collectionInsight = stats.total
     ? `${Math.round((discCount / stats.total) * 100)}% 光碟 · ${Math.round((digitalCount / stats.total) * 100)}% 數位`
     : "尚未建立收藏";
-  const playerStyle = getPlayerStyle(getCollectionGames(games));
+  const playerStyle = getPlayerStyle(collectionGames);
 
   if (isLoading) {
     return (

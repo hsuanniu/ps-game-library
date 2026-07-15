@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { isCollectionGame, isWishlistGame } from "@/lib/gameCollection";
 import { loadGames, saveGames } from "@/lib/storage/gameStorage";
 import type { Game, GameDraft, LibraryFilter, LibrarySort } from "@/types/game";
 
@@ -92,11 +93,11 @@ export function useGames() {
     const filteredGames = sortedGames.filter((game) => {
       const matchesFilter =
         filter === "all" ||
-        (filter === "collection" &&
-          (["owned", "playing", "finished", "paused"].includes(game.status) ||
-            ["disc", "digital", "ps_plus"].includes(game.ownershipType))) ||
-        game.status === filter ||
-        game.ownershipType === filter ||
+        (filter === "collection" && isCollectionGame(game)) ||
+        (filter === "wishlist" && isWishlistGame(game)) ||
+        ((filter === "disc" || filter === "digital") && isCollectionGame(game) && game.ownershipType === filter) ||
+        (filter !== "wishlist" && filter !== "disc" && filter !== "digital" && game.status === filter) ||
+        (filter !== "wishlist" && filter !== "disc" && filter !== "digital" && game.ownershipType === filter) ||
         (filter === "owned" && ["playing", "finished"].includes(game.status));
 
       const searchableTitle = [game.displayTitle, game.title].filter(Boolean).join(" ").toLowerCase();

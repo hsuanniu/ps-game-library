@@ -1,5 +1,6 @@
 import { formatGenreLabel } from "@/lib/gameMetadataDisplay";
 import { formatTaiwanAgeRating } from "@/lib/gameMetadataDisplay";
+import { getCollectionGames as getCollectionGamesBase } from "@/lib/gameCollection";
 import type { Game } from "@/types/game";
 
 export interface InsightDatum {
@@ -36,7 +37,7 @@ export interface PlayerStyle {
 }
 
 export function getCollectionGames(games: Game[]) {
-  return games.filter((game) => game.status !== "wishlist" && game.status !== "sold" && game.ownershipType !== "sold");
+  return getCollectionGamesBase(games);
 }
 
 export function getGenreDistribution(games: Game[]) {
