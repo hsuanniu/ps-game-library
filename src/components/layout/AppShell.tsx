@@ -79,7 +79,9 @@ export function AppShell({ activeView, onViewChange, subtitle = uiTerms.brandSub
                 onClick={isFormAction ? formAction.onClick : () => onViewChange(item.view)}
                 className={cn(
                   "grid h-14 place-items-center rounded-lg text-xs font-semibold transition duration-200 active:scale-[0.97]",
-                  isActive ? "bg-emerald-400 text-slate-950" : "text-slate-400 hover:bg-white/[0.08] hover:text-white",
+                  isActive
+                    ? "bg-emerald-400/13 text-emerald-200 shadow-[inset_0_0_0_1px_rgba(52,211,153,0.18)]"
+                    : "text-slate-500 hover:bg-white/[0.07] hover:text-slate-200",
                   isFormInProgress && "cursor-default bg-white/[0.04] text-slate-500 hover:bg-white/[0.04] hover:text-slate-500 active:scale-100",
                 )}
               >
