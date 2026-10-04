@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { isCollectionGame, isWishlistGame } from "@/lib/gameCollection";
+import { CloudStorageError, loadCloudGames, saveCloudGames } from "@/lib/storage/gameCloudStorage";
 import { loadGames, saveGames } from "@/lib/storage/gameStorage";
 import type { Game, GameDraft, LibraryFilter, LibrarySort } from "@/types/game";
 
@@ -21,20 +22,85 @@ function makeId() {
 export function useGames() {
   const [games, setGames] = useState<Game[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const cloudRevisionRef = useRef<number | null>(null);
+  const lastCloudSnapshotRef = useRef("");
+  const cloudSaveQueueRef = useRef(Promise.resolve());
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setGames(loadGames());
-      setIsLoading(false);
-    }, 320);
+    let cancelled = false;
 
-    return () => window.clearTimeout(timer);
+    async function loadInitialGames() {
+      const localGames = loadGames();
+
+      try {
+        const cloudSnapshot = await loadCloudGames();
+
+        if (cancelled) {
+          return;
+        }
+
+        if (cloudSnapshot.initialized) {
+          cloudRevisionRef.current = cloudSnapshot.revision;
+          lastCloudSnapshotRef.current = JSON.stringify(cloudSnapshot.games);
+          saveGames(cloudSnapshot.games);
+          setGames(cloudSnapshot.games);
+        } else {
+          setGames(localGames);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setGames(localGames);
+        }
+
+        if (!(error instanceof CloudStorageError) || ![401, 503].includes(error.status)) {
+          console.error("[Games] Cloud library load failed", error);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    void loadInitialGames();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
-    if (!isLoading) {
-      saveGames(games);
+    if (isLoading) {
+      return;
     }
+
+    saveGames(games);
+
+    if (cloudRevisionRef.current === null) {
+      return;
+    }
+
+    const serializedGames = JSON.stringify(games);
+    if (serializedGames === lastCloudSnapshotRef.current) {
+      return;
+    }
+
+    const gamesToSave = games;
+    cloudSaveQueueRef.current = cloudSaveQueueRef.current
+      .catch(() => undefined)
+      .then(async () => {
+        const currentSerializedGames = JSON.stringify(gamesToSave);
+        if (currentSerializedGames === lastCloudSnapshotRef.current || cloudRevisionRef.current === null) {
+          return;
+        }
+
+        const result = await saveCloudGames(gamesToSave, cloudRevisionRef.current);
+        cloudRevisionRef.current = result.revision;
+        lastCloudSnapshotRef.current = currentSerializedGames;
+      })
+      .catch((error) => {
+        console.error("[Games] Cloud library save failed", error);
+      });
   }, [games, isLoading]);
 
   const sortedGames = useMemo(
