@@ -154,6 +154,7 @@ export default function SyncPage() {
               <input
                 id="admin-token"
                 type="password"
+                inputMode="numeric"
                 autoComplete="current-password"
                 value={token}
                 onChange={(event) => setToken(event.target.value)}
