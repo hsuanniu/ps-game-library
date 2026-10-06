@@ -40,10 +40,15 @@ export function useGames() {
         }
 
         if (cloudSnapshot.initialized) {
-          cloudRevisionRef.current = cloudSnapshot.revision;
-          lastCloudSnapshotRef.current = JSON.stringify(cloudSnapshot.games);
-          saveGames(cloudSnapshot.games);
-          setGames(cloudSnapshot.games);
+          if (cloudSnapshot.games.length === 0 && localGames.length > 0) {
+            console.error("[Games] Refused to replace a non-empty local library with an empty cloud library");
+            setGames(localGames);
+          } else {
+            cloudRevisionRef.current = cloudSnapshot.revision;
+            lastCloudSnapshotRef.current = JSON.stringify(cloudSnapshot.games);
+            saveGames(cloudSnapshot.games);
+            setGames(cloudSnapshot.games);
+          }
         } else {
           setGames(localGames);
         }

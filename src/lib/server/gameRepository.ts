@@ -29,6 +29,13 @@ export class GameSyncConflictError extends Error {
   }
 }
 
+export class EmptyLibraryInitializationError extends Error {
+  constructor() {
+    super("An empty library cannot initialize cloud storage");
+    this.name = "EmptyLibraryInitializationError";
+  }
+}
+
 let sqlClient: SqlClient | undefined;
 let schemaPromise: Promise<void> | undefined;
 
@@ -77,7 +84,10 @@ export async function replaceStoredGames(games: Game[], expectedRevision: number
           revision = revision + 1,
           updated_at = ${now}::timestamptz,
           last_write_id = ${operationId}
-        WHERE id = 'library' AND revision = ${expectedRevision}
+        WHERE
+          id = 'library'
+          AND revision = ${expectedRevision}
+          AND (initialized = TRUE OR ${games.length > 0})
         RETURNING revision
       `,
       tx`
@@ -107,6 +117,14 @@ export async function replaceStoredGames(games: Game[], expectedRevision: number
   const revision = revisionRows[0]?.revision;
 
   if (revision === undefined) {
+    if (games.length === 0) {
+      const stateRows = await sql`SELECT initialized FROM my_games_state WHERE id = 'library'`;
+      const state = (stateRows as StateRow[])[0];
+      if (!state?.initialized) {
+        throw new EmptyLibraryInitializationError();
+      }
+    }
+
     throw new GameSyncConflictError();
   }
 

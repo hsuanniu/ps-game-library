@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { hasValidAdminSession, isAdminAuthConfigured, isSameOriginRequest } from "@/lib/server/apiAuth";
 import {
   DatabaseNotConfiguredError,
+  EmptyLibraryInitializationError,
   GameSyncConflictError,
   getStoredGames,
   replaceStoredGames,
@@ -57,6 +58,10 @@ export async function PUT(request: Request) {
     const result = await replaceStoredGames(body.games as Game[], Number(body.expectedRevision));
     return noStoreJson({ ok: true, ...result });
   } catch (error) {
+    if (error instanceof EmptyLibraryInitializationError) {
+      return noStoreJson({ error: "empty_library_initialization_blocked" }, 400);
+    }
+
     if (error instanceof GameSyncConflictError) {
       const snapshot = await getStoredGames();
       return noStoreJson(

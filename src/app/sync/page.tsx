@@ -13,7 +13,7 @@ import {
   loadCloudGames,
   saveCloudGames,
 } from "@/lib/storage/gameCloudStorage";
-import { loadGames } from "@/lib/storage/gameStorage";
+import { loadGameBackup, loadGames, restoreGameBackup } from "@/lib/storage/gameStorage";
 import type { StoredGamesSnapshot } from "@/types/gameApi";
 
 interface SessionStatus {
@@ -27,6 +27,7 @@ export default function SyncPage() {
   const [snapshot, setSnapshot] = useState<StoredGamesSnapshot>();
   const [token, setToken] = useState("");
   const [localCount, setLocalCount] = useState(0);
+  const [backupCount, setBackupCount] = useState(0);
   const [isBusy, setIsBusy] = useState(true);
   const [message, setMessage] = useState("");
 
@@ -41,6 +42,7 @@ export default function SyncPage() {
     try {
       const nextSession = await getCloudSessionStatus();
       setLocalCount(loadGames().length);
+      setBackupCount(loadGameBackup().length);
       setSession(nextSession);
 
       if (nextSession.authenticated) {
@@ -98,6 +100,16 @@ export default function SyncPage() {
     } finally {
       setIsBusy(false);
     }
+  }
+
+  function handleRestoreBackup() {
+    const restoredGames = restoreGameBackup();
+    setLocalCount(restoredGames.length);
+    setMessage(
+      restoredGames.length > 0
+        ? `已從本機安全備份還原 ${restoredGames.length} 款遊戲。請確認數量後再匯入雲端。`
+        : "找不到可還原的本機安全備份。",
+    );
   }
 
   async function handleLogout() {
@@ -192,9 +204,16 @@ export default function SyncPage() {
                     </Button>
                   </>
                 ) : (
-                  <p className="rounded-lg border border-amber-300/15 bg-amber-300/[0.06] p-3 text-sm leading-6 text-amber-100">
-                    這個瀏覽器目前是空的。為保護收藏，系統不允許用空資料初始化雲端；請改用原本保存遊戲的同一個 iPhone 瀏覽器開啟此頁。
-                  </p>
+                  <div className="grid gap-2">
+                    <p className="rounded-lg border border-amber-300/15 bg-amber-300/[0.06] p-3 text-sm leading-6 text-amber-100">
+                      這個瀏覽器目前是空的。為保護收藏，系統不允許用空資料初始化雲端；請改用原本保存遊戲的同一個 iPhone 瀏覽器開啟此頁。
+                    </p>
+                    {backupCount > 0 ? (
+                      <Button type="button" variant="secondary" onClick={handleRestoreBackup}>
+                        還原本機安全備份（{backupCount} 款）
+                      </Button>
+                    ) : null}
+                  </div>
                 )}
               </div>
             ) : (
@@ -254,6 +273,10 @@ function getErrorMessage(error: unknown) {
 
   if (error.code === "sync_conflict") {
     return "雲端資料剛被更新，請重新整理後再試。";
+  }
+
+  if (error.code === "empty_library_initialization_blocked") {
+    return "為保護收藏，空白資料不能初始化雲端。";
   }
 
   return `連線失敗（${error.code}）。`;
