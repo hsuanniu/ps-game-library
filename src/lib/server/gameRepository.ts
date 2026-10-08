@@ -43,6 +43,19 @@ export function isGameDatabaseConfigured() {
   return Boolean(process.env.DATABASE_URL?.trim());
 }
 
+export async function getStoredGamesForApi(includeCover = false): Promise<Game[]> {
+  const sql = getSqlClient();
+  await ensureSchema(sql);
+
+  const rows = includeCover
+    ? await sql`SELECT data FROM my_games_games ORDER BY created_at DESC, id ASC`
+    : await sql`SELECT data - 'coverUrl' AS data FROM my_games_games ORDER BY created_at DESC, id ASC`;
+
+  return (rows as GameRow[])
+    .map((row) => parseStoredGame(row.data))
+    .filter((game): game is Game => game !== undefined);
+}
+
 export async function getStoredGames(): Promise<StoredGamesSnapshot> {
   const sql = getSqlClient();
   await ensureSchema(sql);

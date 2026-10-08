@@ -68,7 +68,9 @@ Authorization: Bearer YOUR_GAMES_API_TOKEN
 
 ### `GET /api/games`
 
-回傳資料庫中的所有遊戲，包含收藏、願望清單、借入、借出及已售出，不只限於已擁有遊戲。
+分頁讀取資料庫中的遊戲，包含收藏、願望清單、借入、借出及已售出，不只限於已擁有遊戲。預設每頁 20 筆、最多 100 筆，依 `created_at DESC, id ASC` 排列。
+
+預設回傳精簡資料：省略 `cover_url`、`notes`、`purchase`、`loan_person`，其餘欄位保留。省略的欄位仍可透過 `fields` 選取，單款完整資料仍可透過 `getGame` 取得。這些調整只改外部唯讀 API，網站 UI 與雲端同步的完整資料不變。
 
 可用 query parameters：
 
@@ -81,8 +83,27 @@ Authorization: Bearer YOUR_GAMES_API_TOKEN
 | `status` | `wishlist` | 網站原始 status |
 | `play_status` | `completed` | 正規化遊玩狀態 |
 | `ownership_status` | `owned` | 正規化持有狀態 |
+| `limit` | `20` | 每頁最多筆數，整數 1–100，預設 20 |
+| `offset` | `0` | 略過符合篩選的筆數，預設 0 |
+| `fields` | `id,title` | 只回傳指定欄位，逗號分隔；Action schema 使用字串陣列 |
 
 `ownership_status=not_owned` 會包含目前不屬於使用者持有的資料，例如願望清單、借入與已售出。
+
+每頁 JSON 最多 64 KiB，較大的資料會讓該頁提早結束。`total` 永遠是符合篩選的總數；`returned` 才是本頁筆數，`count` 保留為 `total` 的舊相容名稱。若 `hasMore=true`，請使用 `nextOffset` 取得下一頁，保留相同篩選與 `fields`，不要直接加上 `limit`，以免漏資料。超出末頁會回傳空的 `games`、正確 `total`、`hasMore=false` 與 `nextOffset=null`。
+
+若單款選取欄位已超過上限（例如 base64 封面），回傳小型 `413 record_too_large` 錯誤，請改用 `fields=id,title` 或移除大型欄位。資料不會被截斷或修改。無效的 `limit`、`offset` 或欄位名稱回傳 `400 invalid_query`。
+
+分頁查詢各自讀取最新雲端資料；若抓取期間收藏有新增或刪除，offset 可能移動，需要重新從第一頁讀取。
+
+### `GET /api/games/count`（`countGames`）
+
+使用和 `listGames` 相同的七個篩選條件：`platform`、`genre`、`series`、`status`、`play_status`、`ownership_status`、`search`。只回傳數量，不回傳遊戲或圖片，也不受分頁參數影響。
+
+```json
+{ "total": 247 }
+```
+
+查詢總數、PS4 / PS5 數量、收藏與願望清單數量或遊玩狀態數量，優先使用 `countGames`。
 
 ### `GET /api/games/{id}`
 
@@ -91,6 +112,8 @@ Authorization: Bearer YOUR_GAMES_API_TOKEN
 ### `GET /api/openapi`
 
 回傳動態產生的 OpenAPI 3.1 schema，可供 ChatGPT Custom GPT Action 或其他 API client 匯入。
+
+Schema 版本為 `1.1.0`，提供 `listGames`、`countGames`、`getGame`。更新部署後，請在 GPT 編輯器原本的 Action 重新從 `https://ps-game-library.vercel.app/api/openapi` 匯入並儲存，保留原本 API Key / Bearer 驗證。既有 GPT 不會自動更新已匯入的 schema。
 
 ## 測試
 
@@ -107,17 +130,52 @@ curl \
 ```bash
 curl \
   -H "Authorization: Bearer YOUR_GAMES_API_TOKEN" \
-  "https://ps-game-library.vercel.app/api/games?platform=PS5&play_status=backlog&ownership_status=owned"
+"https://ps-game-library.vercel.app/api/games?platform=PS5&play_status=backlog&ownership_status=owned"
 ```
+
+只查數量：
+
+```bash
+curl \
+  -H "Authorization: Bearer YOUR_GAMES_API_TOKEN" \
+  "https://ps-game-library.vercel.app/api/games/count?platform=PS4&ownership_status=owned"
+```
+
+只取名稱，逐頁取得完整 PS4 收藏：
+
+```bash
+curl \
+  -H "Authorization: Bearer YOUR_GAMES_API_TOKEN" \
+  "https://ps-game-library.vercel.app/api/games?platform=PS4&ownership_status=owned&limit=20&offset=0&fields=id,title"
+```
+
+接著用回應的 `nextOffset` 替換 `offset`，直到 `hasMore=false`。同樣可用 `/api/games/count?play_status=completed`、`?play_status=backlog`、`?play_status=playing` 或 `?ownership_status=wishlist` 查詢分類數量。
 
 未帶 Token 會回傳 `401`。未設定資料庫或 Token 會回傳 `503`。
 
 ## Response
 
+`GET /api/games?limit=1&offset=0&fields=id,title` 的範例：
+
 ```json
 {
-  "games": [
-    {
+  "games": [{ "id": "game-1", "title": "Cyberpunk 2077" }],
+  "total": 247,
+  "hasMore": true,
+  "limit": 1,
+  "offset": 0,
+  "nextOffset": 1,
+  "returned": 1,
+  "count": 247,
+  "generated_at": "2026-10-08T08:00:00.000Z"
+}
+```
+
+完整單款資料（`GET /api/games/{id}`）的範例：
+
+```json
+{
+  "game": {
       "id": "7f4d8b5b-...",
       "title": "Cyberpunk 2077",
       "display_title": "電馭叛客 2077",
@@ -152,9 +210,7 @@ curl \
       "added_at": "2026-01-10T08:00:00.000Z",
       "created_at": "2026-01-10T08:00:00.000Z",
       "updated_at": "2026-07-15T09:00:00.000Z"
-    }
-  ],
-  "count": 1,
+    },
   "generated_at": "2026-10-04T08:00:00.000Z"
 }
 ```
@@ -223,6 +279,7 @@ API 保留網站原始 `status`，另外提供方便 AI 查詢的欄位：
 若希望在 ChatGPT Developer Mode 或多個 AI client 中使用一致工具名稱，第二階段再建立 Remote MCP Server。MCP 應只包裝同一個唯讀 API，不建立第二份資料。建議工具：
 
 - `list_games`
+- `count_games`
 - `get_game`
 - `search_games`
 - `get_currently_playing`
@@ -235,7 +292,17 @@ API 保留網站原始 `status`，另外提供方便 AI 查詢的欄位：
 - `get_games_by_genre`
 - `get_games_by_series`
 
-所有工具只呼叫 `GET /api/games` 或 `GET /api/games/{id}`。不要實作任何新增、更新、刪除或變更狀態工具。
+所有工具只呼叫 `GET /api/games`、`GET /api/games/count` 或 `GET /api/games/{id}`。清單工具需傳入 `limit`、`offset`、`fields`，數量工具只取 `total`。不要實作任何新增、更新、刪除或變更狀態工具。
+
+## 開發驗證
+
+```bash
+node --test tests/game-api.test.mjs
+npm run lint
+npm run build
+```
+
+測試使用獨立記憶體 fixture（247 款、含大型封面），不寫入正式資料庫或 localStorage。
 
 ## 安全注意事項
 

@@ -44,9 +44,20 @@ export interface GameApiRecord {
 }
 
 export interface GamesApiResponse {
-  games: GameApiRecord[];
+  games: Partial<GameApiRecord>[];
+  total: number;
+  hasMore: boolean;
+  limit: number;
+  offset: number;
+  nextOffset: number | null;
+  returned: number;
+  /** @deprecated Use total for the number of matching games. */
   count: number;
   generated_at: string;
+}
+
+export interface GamesCountApiResponse {
+  total: number;
 }
 
 export interface GameApiResponse {
