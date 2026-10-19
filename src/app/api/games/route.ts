@@ -1,6 +1,5 @@
-import { filterGameApiRecords, toGameApiRecord } from "@/lib/api/gameApi";
-import { createGamesPage, readGamesListQuery } from "@/lib/api/gameApiQuery";
-import { getStoredGamesForApi } from "@/lib/server/gameRepository";
+import { readGamesListQuery } from "@/lib/api/gameApiQuery";
+import { listGameRecords } from "@/lib/server/gameReadService";
 import { authorizeGamesApi, gamesApiErrorResponse, gamesApiJson } from "@/lib/server/gamesApiResponse";
 
 export const dynamic = "force-dynamic";
@@ -11,9 +10,7 @@ export async function GET(request: Request) {
 
   try {
     const query = readGamesListQuery(new URL(request.url).searchParams);
-    const storedGames = await getStoredGamesForApi(query.fields.includes("cover_url"));
-    const records = filterGameApiRecords(storedGames.map(toGameApiRecord), query.filters);
-    return gamesApiJson(createGamesPage(records, query));
+    return gamesApiJson(await listGameRecords(query));
   } catch (error) {
     return gamesApiErrorResponse(error);
   }

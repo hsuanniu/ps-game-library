@@ -7,9 +7,9 @@ export const MAX_GAMES_RESPONSE_BYTES = 64 * 1024;
 
 export const GAME_API_FIELDS = [
   "id", "title", "display_title", "cover_url", "platform", "status",
-  "play_status", "ownership_status", "ownership_type", "is_owned", "wishlist",
+  "play_status", "play_status_source", "ownership_status", "ownership_type", "is_owned", "wishlist",
   "genre", "age_rating", "rating", "hours_played", "is_completed",
-  "completed_date", "series", "purchase", "loan_person", "notes",
+  "completion_source", "completed_date", "series", "purchase", "loan_person", "notes",
   "added_at", "created_at", "updated_at",
 ] as const satisfies readonly (keyof GameApiRecord)[];
 
@@ -63,7 +63,11 @@ export function readGamesListQuery(params: URLSearchParams): GamesListQuery {
   };
 }
 
-export function createGamesPage(records: GameApiRecord[], query: GamesListQuery): GamesApiResponse {
+export function createGamesPage(
+  records: GameApiRecord[],
+  query: GamesListQuery,
+  maxBytes = MAX_GAMES_RESPONSE_BYTES,
+): GamesApiResponse {
   const games: Partial<GameApiRecord>[] = [];
   const total = records.length;
   const generatedAt = new Date().toISOString();
@@ -85,7 +89,7 @@ export function createGamesPage(records: GameApiRecord[], query: GamesListQuery)
   // Bound the serialized payload as well as row count; uploaded covers can be large data URLs.
   for (const record of records.slice(query.offset, query.offset + query.limit)) {
     games.push(Object.fromEntries(query.fields.map((field) => [field, record[field]])));
-    if (new TextEncoder().encode(JSON.stringify(response())).byteLength > MAX_GAMES_RESPONSE_BYTES) {
+    if (new TextEncoder().encode(JSON.stringify(response())).byteLength > maxBytes) {
       games.pop();
       if (games.length === 0) {
         throw new GameApiRecordTooLargeError();

@@ -1,6 +1,6 @@
 import { formatTaiwanAgeRating } from "@/lib/gameMetadataDisplay";
 import type { Game } from "@/types/game";
-import type { ApiOwnershipStatus, ApiPlayStatus, GameApiRecord } from "@/types/gameApi";
+import type { ApiOwnershipStatus, ApiPlayStatus, ApiProgressSource, GameApiRecord } from "@/types/gameApi";
 
 export interface GameApiFilters {
   search?: string;
@@ -15,6 +15,8 @@ export interface GameApiFilters {
 export function toGameApiRecord(game: Game): GameApiRecord {
   const ownershipStatus = getOwnershipStatus(game);
   const ageRatingDisplay = formatTaiwanAgeRating(game.ageRating);
+  const completion = getCompletion(game);
+  const progress = getPlayStatus(game, completion);
 
   return {
     id: game.id,
@@ -23,7 +25,8 @@ export function toGameApiRecord(game: Game): GameApiRecord {
     cover_url: game.coverUrl ?? null,
     platform: game.platform,
     status: game.status,
-    play_status: getPlayStatus(game),
+    play_status: progress.status,
+    play_status_source: progress.source,
     ownership_status: ownershipStatus,
     ownership_type: game.ownershipType,
     is_owned: ownershipStatus === "owned" || ownershipStatus === "lent",
@@ -37,7 +40,8 @@ export function toGameApiRecord(game: Game): GameApiRecord {
       : null,
     rating: null,
     hours_played: game.playTimeHours ?? null,
-    is_completed: game.isCompleted ?? game.status === "finished",
+    is_completed: completion.value,
+    completion_source: completion.source,
     completed_date: null,
     series: game.seriesName
       ? {
@@ -132,28 +136,27 @@ function getOwnershipStatus(game: Game): ApiOwnershipStatus {
   return "owned";
 }
 
-function getPlayStatus(game: Game): ApiPlayStatus {
-  if (game.isCompleted || game.status === "finished") {
-    return "completed";
+function getCompletion(game: Game): { value: boolean | null; source: ApiProgressSource } {
+  if (typeof game.isCompleted === "boolean") {
+    return { value: game.isCompleted, source: "isCompleted" };
   }
-
-  if (game.status === "playing") {
-    return "playing";
+  if (game.status === "finished") {
+    return { value: true, source: "status" };
   }
+  return { value: null, source: null };
+}
 
-  if (game.status === "paused") {
-    return "paused";
+function getPlayStatus(
+  game: Game,
+  completion: ReturnType<typeof getCompletion>,
+): { status: ApiPlayStatus; source: ApiProgressSource } {
+  if (completion.value === true) {
+    return { status: "completed", source: completion.source };
   }
-
-  if (game.status === "wishlist" || game.status === "waiting_sale") {
-    return "not_started";
+  if (game.status === "playing" || game.status === "paused") {
+    return { status: game.status, source: "status" };
   }
-
-  if ((game.playTimeHours ?? 0) === 0 && game.status !== "sold") {
-    return "backlog";
-  }
-
-  return "not_recorded";
+  return { status: "not_recorded", source: null };
 }
 
 function matchesOwnershipStatus(game: GameApiRecord, filter: string) {

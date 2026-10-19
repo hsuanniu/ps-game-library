@@ -62,7 +62,7 @@ My Games 網站新增 / 編輯 / 刪除
 Authorization: Bearer YOUR_GAMES_API_TOKEN
 ```
 
-網站的雲端寫入不使用這個 Token。它使用另一組 `GAMES_ADMIN_TOKEN` 建立 HttpOnly、Secure、SameSite=Strict 的管理 Cookie。外部公開 API 沒有 `POST`、`PUT`、`PATCH` 或 `DELETE`。
+網站的雲端寫入不使用這個 Token。它使用另一組 `GAMES_ADMIN_TOKEN` 建立 HttpOnly、Secure、SameSite=Strict 的管理 Cookie。外部 `/api/games` API 沒有 `POST`、`PUT`、`PATCH` 或 `DELETE`。MCP 的 `POST /api/mcp` 只是傳送唯讀 JSON-RPC 查詢，沒有任何寫入遊戲資料的工具。
 
 ## Endpoints
 
@@ -113,7 +113,24 @@ Authorization: Bearer YOUR_GAMES_API_TOKEN
 
 回傳動態產生的 OpenAPI 3.1 schema，可供 ChatGPT Custom GPT Action 或其他 API client 匯入。
 
-Schema 版本為 `1.1.0`，提供 `listGames`、`countGames`、`getGame`。更新部署後，請在 GPT 編輯器原本的 Action 重新從 `https://ps-game-library.vercel.app/api/openapi` 匯入並儲存，保留原本 API Key / Bearer 驗證。既有 GPT 不會自動更新已匯入的 schema。
+Schema 版本為 `1.2.0`，提供 `listGames`、`countGames`、`getGame`。更新部署後，請在 GPT 編輯器原本的 Action 重新從 `https://ps-game-library.vercel.app/api/openapi` 匯入並儲存，保留原本 API Key / Bearer 驗證。既有 GPT 不會自動更新已匯入的 schema。
+
+### `POST /api/mcp`
+
+在原本 Next.js / Vercel 專案提供無狀態 MCP endpoint，使用 Vercel 官方 `mcp-handler`。支援目前協定與舊版 Streamable HTTP，沿用同一個 `GAMES_API_TOKEN`，每次請求均需 Bearer 驗證。沒有獨立資料庫、同步清單或額外 Token。
+
+提供四個唯讀工具：
+
+| Tool | 功能 |
+| --- | --- |
+| `list_games` | 分頁查詢，接受和 REST 相同的 filters、`limit`、`offset`、`fields` |
+| `count_games` | 接受相同 filters，只回傳 `total` |
+| `get_game` | 依 `id` 查詢單款，可指定 `fields` |
+| `search_games` | 必填 `search`，其餘和 `list_games` 相同 |
+
+MCP 的 `fields` 為字串陣列。資料頁上限為 24 KiB，預留文字與 structured content 的 JSON-RPC 包裝空間，仍以 `nextOffset` 繼續。所有工具標示 `readOnlyHint=true`、`destructiveHint=false`。不開啟訂閱或舊 HTTP+SSE，帶正確 Token 的 GET 可能回傳 `405`，請使用支援 Streamable HTTP 的 MCP client。
+
+ChatGPT「牛域」現有 Plugin 的檢查結果、平台限制及設定步驟記錄於 [docs/NIUYU_MCP.md](docs/NIUYU_MCP.md)。僅有一個 MCP URL 不代表 ChatGPT Plugin 已完成連線。
 
 ## 測試
 
@@ -125,12 +142,12 @@ curl \
   "https://ps-game-library.vercel.app/api/games"
 ```
 
-查詢尚未完成的 PS5 收藏：
+查詢明確記錄為已完成的 PS5 收藏：
 
 ```bash
 curl \
   -H "Authorization: Bearer YOUR_GAMES_API_TOKEN" \
-"https://ps-game-library.vercel.app/api/games?platform=PS5&play_status=backlog&ownership_status=owned"
+  "https://ps-game-library.vercel.app/api/games?platform=PS5&play_status=completed&ownership_status=owned"
 ```
 
 只查數量：
@@ -183,6 +200,7 @@ curl \
       "platform": "PS5",
       "status": "owned",
       "play_status": "completed",
+      "play_status_source": "isCompleted",
       "ownership_status": "owned",
       "ownership_type": "disc",
       "is_owned": true,
@@ -196,6 +214,7 @@ curl \
       "rating": null,
       "hours_played": 100,
       "is_completed": true,
+      "completion_source": "isCompleted",
       "completed_date": null,
       "series": {
         "name": "Cyberpunk",
@@ -258,12 +277,15 @@ API 保留網站原始 `status`，另外提供方便 AI 查詢的欄位：
 
 ### `play_status`
 
-- `isCompleted=true` 或舊 `finished` -> `completed`
+- 明確 `isCompleted=true` -> `completed`，來源為 `isCompleted`
+- 沒有 `isCompleted`，但原始 `status=finished` -> `completed`，來源為 `status`
 - 舊 `playing` -> `playing`
 - 舊 `paused` -> `paused`
-- 願望清單 -> `not_started`
-- 已持有且遊玩時數為 0 -> `backlog`（依現有資料推定）
-- 有時數但未記錄明確進度 -> `not_recorded`
+- 其餘 -> `not_recorded`，不從時數、持有狀態、願望清單或備註推測
+
+`is_completed` 直接反映 `isCompleted`，缺少時只接受明確的舊 `finished` 狀態，否則為 `null`。`isCompleted=false` 優先於相衝突的舊 `finished`。`completion_source` 與 `play_status_source` 為 `isCompleted`、`status` 或 `null`，方便工具辨識資料來源。
+
+`hours_played` 只讀取實際 `playTimeHours`；未填是 `null`，有記錄 0 才是 0。未完成不等於未玩，也不代表 backlog。為相容舊 client，`backlog`、`not_started` 篩選名稱保留，但目前網站沒有明確的對應進度欄位，因此不再推導這兩種結果。查詢不到只代表沒有該類明確紀錄。
 
 目前網站沒有 `dropped`、個人 `rating` 與 `completed_date` 欄位，因此 API 會誠實回傳 `rating: null`、`completed_date: null`，也不會捏造棄坑狀態。若未來要精準回答「最近破關」或「最高評分」，建議在網站資料模型增加：
 
@@ -276,23 +298,14 @@ API 保留網站原始 `status`，另外提供方便 AI 查詢的欄位：
 
 個人第一階段最簡單的方式是使用 `/api/openapi` 建立 ChatGPT Custom GPT Action，設定 Bearer authentication。它已足夠回答遊戲庫、願望清單、平台、系列、類型與完成狀態等問題。
 
-若希望在 ChatGPT Developer Mode 或多個 AI client 中使用一致工具名稱，第二階段再建立 Remote MCP Server。MCP 應只包裝同一個唯讀 API，不建立第二份資料。建議工具：
+目前已提供 `/api/mcp`，與 REST 共用 `src/lib/server/gameReadService.ts`，直接讀取同一份 Neon 資料。沒有第二份資料。已實作工具：
 
 - `list_games`
 - `count_games`
 - `get_game`
 - `search_games`
-- `get_currently_playing`
-- `get_backlog`
-- `get_completed_games`
-- `get_wishlist`
-- `get_owned_games`
-- `get_unowned_games`
-- `get_games_by_platform`
-- `get_games_by_genre`
-- `get_games_by_series`
 
-所有工具只呼叫 `GET /api/games`、`GET /api/games/count` 或 `GET /api/games/{id}`。清單工具需傳入 `limit`、`offset`、`fields`，數量工具只取 `total`。不要實作任何新增、更新、刪除或變更狀態工具。
+查詢目前遊玩、已完成、願望清單或平台／類型／系列，只需傳入相應 filter，不另增重複工具。所有工具只呼叫共用唯讀資料服務。不要實作任何新增、更新、刪除或變更狀態工具。
 
 ## 開發驗證
 

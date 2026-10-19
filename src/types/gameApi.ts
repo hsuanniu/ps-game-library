@@ -9,6 +9,7 @@ export type ApiPlayStatus =
   | "not_recorded";
 
 export type ApiOwnershipStatus = "owned" | "wishlist" | "borrowed" | "lent" | "sold";
+export type ApiProgressSource = "isCompleted" | "status" | null;
 
 export interface GameApiRecord {
   id: string;
@@ -18,6 +19,7 @@ export interface GameApiRecord {
   platform: Platform;
   status: GameStatus;
   play_status: ApiPlayStatus;
+  play_status_source: ApiProgressSource;
   ownership_status: ApiOwnershipStatus;
   ownership_type: OwnershipType;
   is_owned: boolean;
@@ -26,7 +28,8 @@ export interface GameApiRecord {
   age_rating: (AgeRating & { display: string }) | null;
   rating: number | null;
   hours_played: number | null;
-  is_completed: boolean;
+  is_completed: boolean | null;
+  completion_source: ApiProgressSource;
   completed_date: string | null;
   series: {
     name: string;
