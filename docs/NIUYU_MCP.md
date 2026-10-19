@@ -19,37 +19,48 @@ MCP 與 REST 共用正式 Neon 資料庫與唯讀資料服務，不需要搬移�
 - 後台 ID：`plugin_55deb1cc65a88191996997c95d08c3c3`
 - 封裝名稱：`gpt-ee514337f5583ab13de30af2f629bb0f`
 - 範圍：私人 `USER`，原有身分與分享對象未變。
-- 目前版本：`0.4.2`
-- 目前 release：`pluginrel_6ad654f422648191b5450e3d8fa7cdae`
+- 目前版本：`0.4.4`
+- 目前 release：`pluginrel_6ad6594359d88191bc99e3cc22f244bf`
 
 一般 Plugin 搜尋及個人 Plugin 清單沒有列出這個移轉的 Plugin，但用已核對的後台 ID 成功讀取並更新。不能用原 GPT ID 代替後台 ID，也不能因列表找不到就認定不可編輯。
 
-已更新原牛域的唯讀查詢規則，加入指向既有 `/api/mcp` 的 `mcp.json`，使用 API Key / Bearer 宣告，沒有打包任何 Token，圖示及原有支援檔案保留。來源讀回及網頁均確認有 `MCP servers 1`、版本 `0.4.2`。
+先前 `0.4.2` 的 portable `mcp.json` 雖可保存，卻讓網頁入口變成 **Open in desktop app**，並未完成雲端連線。使用者明確授權後，在 `0.4.3` 移除此次測試的 `mcp.json` / `.mcp.json`，確認 **Manage / Try in chat** 恢復。
 
-但網頁更新後只顯示 **Open in desktop app**，未提供雲端 App 授權入口；因此這是可儲存的桌面 MCP 設定，**不是 ChatGPT 雲端已連線**。不能把看到 MCP server 或成功儲存 release 當成工具可用。
+`0.4.4` 改用 `.app.json` 綁定已註冊的私人雲端資料 App，沿用原牛域身分、圖示、Skills 與分享對象。網頁已顯示 **Apps 1 / Connected**，不再使用桌面 MCP 宣告。
 
-海水缸分析庫採用的是 Skills 加上 `.app.json` 中已註冊的 Reef Tank Controller App；它和單獨宣告一個遠端 `mcp.json` 不同。要在 ChatGPT 雲端取得相同效果，仍需適用的已註冊資料 App 與安全授權，再由現有牛域綁定。
+這與海水缸分析庫的 Skills + 已註冊資料 App 相同。儲存設定、畫面顯示 Connected 與實際工具成功仍是不同驗證層級，不能互相代替。
 
-OpenAI 公開提交文件對既有 Skills-only 新增 MCP 的限制，不能籠統套用到私人 Plugin 的原始碼更新；本次實測私人更新可保存，但雲端工具註冊仍未完成。
+## 私人雲端資料 App
 
-曾準備移除此次測試新增的 `mcp.json` / `.mcp.json`、將能力恢復為 Skills 並保留查詢指引，以恢復網頁聊天入口。自動審查以「未明確授權刪除 MCP 設定」拒絕該操作；**移除未執行，0.4.2 與 MCP 設定仍保留**。需要使用者明確同意後才可繼續這項恢復。
+- 名稱：My Games 遊戲庫連線。
+- App ID：`asdk_app_sites_a826dd121bac8191aa95fe9ccd3c090f`。
+- 原生連線 Plugin：`plugin_asdk_app_sites_a826dd121bac8191aa95fe9ccd3c090f`，由 Sites 自動建立，沒有另外建立第二個牛域。
+- Sites project：`appgprj_6ad657c372e881918a527741b66dd8c6`。
+- 連線網址：`https://my-games-readonly-connector.orangebrush512.chatgpt.site`。
+- MCP：同網址的 `/mcp`。
+- 原始碼工作目錄：`/Users/ntype/Documents/Codex/my-games-readonly-connector`，由 Sites source helper 維護其專用原始碼儲存庫及部署。
+
+資料流：牛域 → 私人 Sites MCP → 原 Vercel GET API → 原 Neon 資料庫。橋接不使用 D1 / R2，不複製、不同步也不快取另一份遊戲清單。
+
+Sites 限定擁有者存取，工具呼叫還要求平台注入的使用者身分。原 `GAMES_API_TOKEN` 已保存為 Sites runtime secret；沒有使用 `GAMES_ADMIN_TOKEN`，沒有把憑證放進原始碼、Plugin、URL 或聊天。只允許固定上游與四個 GET 唯讀操作，拒絕未知參數、寫入工具及轉址。資料限制為 24 KiB，分頁與欄位選擇保留。
+
+部署時曾遇到 Cloudflare 不支援 `redirect: "error"` 的實際錯誤。已改為 `redirect: "manual"` 並拒絕全部 3xx 回應，確保不會跟隨轉址傳送 Bearer Token。錯誤記錄遮蔽 Token，不記錄遊戲內容。
 
 官方來源：
 
 - [Upload and submit your plugin：Create the draft](https://developers.openai.com/plugins/deploy/submission)
 - [Package your plugin：MCP authentication](https://developers.openai.com/plugins/build/plugins)
 
-## ChatGPT 端下一步
+## ChatGPT 使用
 
-1. 牛域身分與管理頁已確認，不需要使用者再尋找 Plugin ID。
-2. 目前沒有可綁定的遊戲庫資料 App。若要採海水缸的雲端方式，需要使用者同意註冊遊戲資料連線；該連線可能在 ChatGPT 多出一個 Plugin 項目，與原本「不新增任何 Plugin」的限制有衝突，不能擅自建立。
-3. 同意後，保留原牛域，註冊唯讀資料 App 並綁定。使用原 `GAMES_API_TOKEN` 安全授權，不得把 Token 放入 URL、Skills 或聊天紀錄。桌面 MCP 設定的移除也需使用者明確同意。
-4. 如果連線介面只提供 OAuth，現有固定 Bearer Token 不能冒充 OAuth。此版沒有新建 OAuth 帳號、client secret 或登入流程，應先確認連線介面的實際支援方式。
-5. 連線支援時重新掃描工具，應出現 `list_games`、`count_games`、`get_game`、`search_games`，再在同一個牛域測試。
+1. 開新對話，選擇 `@牛域`，或從原牛域管理頁按 **Try in chat**。
+2. 連線頁應有 **My Games 遊戲庫連線 / Connected**。不需要把 Token 貼到聊天。
+3. 可問總數、平台分布、願望清單或實際記錄的完成與時數。
+4. 舊對話若沒有新工具，改用新對話；不要刪除牛域、重建遊戲庫或重設憑證。
 
 原本「牛的遊戲庫」GPT Action 仍可使用：重新匯入原 OpenAPI URL，保留既有 Bearer 設定。這是既有 Action 的可用途徑，不能當成牛域 Plugin 已完成連線的證明。
 
-此版本沒有建立新的 Plugin，也沒有修改分享對象、安裝其他 Plugin 或把私密資料公開。
+新增資料連線是經使用者明確同意的獨立私人 App；原網站及牛域並未重建，未變更分享對象或公開私密資料。
 
 ## 查詢與資料真實性
 
@@ -72,6 +83,21 @@ npm run build
 整合測試使用獨立記憶體 fixture，不寫入正式資料庫。測試包含 MCP 初始化／發現、分頁、來源欄位、錯誤與缺少 Token、跨站 Origin、無效參數及拒絕寫入工具。
 
 正式環境驗證另外比對修改前後的記錄 ID、名稱、平台、原始狀態、時數與時間戳雜湊。API 能回應與 MCP 能呼叫，只證明伺服器可用；必須在 ChatGPT 現有牛域連線完成後才能標記 Plugin 端恢復。
+
+### 2026-10-20 實際驗證
+
+- 牛域 `0.4.4` 的網頁入口正常，已註冊資料 App 顯示 Connected。
+- 在 ChatGPT 一般 Chat 模式使用原牛域完成端到端查詢，四個唯讀工具全部成功。
+- `count_games`：全部 44 款、PS4 7 款、PS5 37 款；這是全部記錄，不代表全是 PS5，也未額外限定 owned。
+- `list_games`：讀完 44 筆並確認 `hasMore=false`；明確完成 8 款、明確記錄遊玩中 0 款、進度未記錄 36 款。
+- 抽查 3 款的時數、完成布林與來源、遊玩狀態與來源；空時數保留 null，明確 false 不改成未知。
+- 使用清單取得的真實 ID 執行 `get_game`，再以同款名稱執行 `search_games`，回傳一致。
+- 原 REST 缺少／錯誤 Token 均回傳 401；有效唯讀 Token 可讀。查詢未改變原 44 筆的 ID、名稱、平台、原始狀態、時數與時間戳。
+- 私人 Sites `/mcp` 未登入回傳 401；偽造使用者身分標頭但未登入也回傳 401，未取得遊戲資料。
+- 主網站 `npm run lint`、`npm run build` 通過；橋接服務 11 項獨立測試、建置及部署檔驗證通過。
+- 橋接正式部署 commit：`d8ed2dca92342e5b3ea5ef0f03fddc779149d158`，Sites deployment：`appgdep_6ad65ab239088191b39fd85e6dbedfba`，狀態 succeeded。
+
+初次端到端測試失敗的對話保留在帳號中；同一驗證對話最後一次已成功。辨識最末的「牛域本次唯讀驗證結果」，不要把前面的診斷失敗當成目前狀態。
 
 ## 既有依賴檢查
 
