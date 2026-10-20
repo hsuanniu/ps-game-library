@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AppLogo } from "@/components/layout/AppLogo";
 import { Button } from "@/components/ui/Button";
+import { BackupRecoveryPanel } from "@/components/games/BackupRecoveryPanel";
 import {
   CloudStorageError,
   createCloudSession,
@@ -51,6 +52,7 @@ export default function SyncPage() {
         setSnapshot(undefined);
       }
     } catch (error) {
+      setSnapshot(undefined);
       setMessage(getErrorMessage(error));
     } finally {
       setIsBusy(false);
@@ -237,6 +239,8 @@ export default function SyncPage() {
         {isBusy ? <p className="mt-5 text-sm text-slate-500">正在檢查資料連線…</p> : null}
         {message ? <p className="mt-4 rounded-lg bg-white/[0.05] p-3 text-sm leading-6 text-slate-300">{message}</p> : null}
       </section>
+
+      <BackupRecoveryPanel authenticated={Boolean(session?.authenticated)} onCloudChanged={refreshStatus} />
 
       <Link
         href="/"

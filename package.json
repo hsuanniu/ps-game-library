@@ -1,5 +1,7 @@
 {
   "scripts": {
+    "verify": "node scripts/verify.mjs",
+    "backup:games": "node scripts/backup-games.mjs",
     "test": "node --test tests/*.test.mjs",
     "dev": "next dev",
     "build": "next build",

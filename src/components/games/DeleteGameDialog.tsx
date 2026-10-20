@@ -24,7 +24,7 @@ export function DeleteGameDialog({ game, onCancel, onConfirm }: DeleteGameDialog
         </div>
         <h2 className="mt-5 text-xl font-bold text-white">{uiTerms.deleteGame}？</h2>
         <p className="mt-2 text-sm leading-6 text-slate-400">
-          「{title}」會從本機資料移除。這個動作目前沒有復原功能。
+          「{title}」會從遊戲庫移除，並在連線成功時同步雲端。請先保留需要的備份。
         </p>
         <div className="mt-6 grid grid-cols-2 gap-3">
           <Button variant="secondary" type="button" onClick={onCancel}>取消</Button>

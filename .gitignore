@@ -14,3 +14,8 @@ pnpm-debug.log*
 
 .DS_Store
 .vercel
+
+# Private exports and deployment checks must never be published.
+.backups/
+.verification/
+my-games-*.json
