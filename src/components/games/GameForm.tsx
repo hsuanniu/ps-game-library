@@ -7,6 +7,7 @@ import { CoverImage } from "@/components/games/CoverImage";
 import { Field, inputClassName } from "@/components/ui/Field";
 import { platformOptions, visibleOwnershipOptions, visibleStatusOptions } from "@/lib/constants";
 import { formatGenreList } from "@/lib/gameMetadataDisplay";
+import { completionForForm, normalizeVisibleOwnershipType, normalizeVisibleStatus, preserveLegacyDraft } from "@/lib/gameDraft";
 import { GameSearchError, searchGames } from "@/lib/services/gameSearchService";
 import { uiTerms } from "@/lib/terminology";
 import { cn } from "@/lib/utils";
@@ -15,7 +16,7 @@ import type { AgeRating, Game, GameDraft, GameSearchResult, GameStatus, Ownershi
 interface GameFormProps {
   editingGame?: Game;
   formId?: string;
-  onSubmit: (draft: GameDraft) => void;
+  onSubmit: (draft: GameDraft) => Promise<boolean>;
   onCancel: () => void;
   onDirtyChange?: (isDirty: boolean) => void;
 }
@@ -77,30 +78,10 @@ function gameToState(game?: Game): FormState {
     seriesOrder: game.seriesOrder?.toString() ?? "",
     genre: game.genre?.join(", ") ?? "",
     ageRating: game.ageRating,
-    isCompleted: game.isCompleted ?? false,
+    isCompleted: completionForForm(game),
     loanPerson: game.loanPerson ?? "",
     notes: game.notes ?? "",
   };
-}
-
-function normalizeVisibleStatus(status: GameStatus): GameStatus {
-  if (status === "playing" || status === "finished" || status === "paused") {
-    return "owned";
-  }
-
-  if (status === "waiting_sale") {
-    return "wishlist";
-  }
-
-  return status;
-}
-
-function normalizeVisibleOwnershipType(ownershipType: OwnershipType): OwnershipType {
-  if (ownershipType === "disc" || ownershipType === "digital") {
-    return ownershipType;
-  }
-
-  return "digital";
 }
 
 function parseOptionalNumber(value: string) {
@@ -143,6 +124,8 @@ export function GameForm({ editingGame, formId, onSubmit, onCancel, onDirtyChang
   const [showMore, setShowMore] = useState(Boolean(editingGame));
   const [isManualMode, setIsManualMode] = useState(Boolean(editingGame?.displayTitle));
   const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const submittingRef = useRef(false);
   const [results, setResults] = useState<GameSearchResult[]>([]);
   const [selectedGame, setSelectedGame] = useState<GameSearchResult | undefined>();
   const [isSearching, setIsSearching] = useState(false);
@@ -274,6 +257,11 @@ export function GameForm({ editingGame, formId, onSubmit, onCancel, onDirtyChang
       return;
     }
 
+    if (file.size > 1_500_000) {
+      setCoverError("圖片超過 1.5 MB，請選擇較小的圖片；原封面不會變更。");
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = () => {
       if (typeof reader.result === "string") {
@@ -308,27 +296,37 @@ export function GameForm({ editingGame, formId, onSubmit, onCancel, onDirtyChang
     };
   }
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (submittingRef.current) return;
 
     if (!form.title.trim()) {
       setError("請輸入遊戲名稱");
       return;
     }
 
-    setError("");
-    onDirtyChange?.(false);
-    onSubmit(toDraft());
-    if (!editingGame) {
-      setForm(defaultState);
-      setSelectedGame(undefined);
-      setShowMore(false);
-      setIsManualMode(false);
+    submittingRef.current = true;
+    setIsSubmitting(true);
+    try {
+      setError("");
+      const saved = await onSubmit(preserveLegacyDraft(toDraft(), editingGame));
+      if (!saved) return;
+      onDirtyChange?.(false);
+      if (!editingGame) {
+        setForm(defaultState);
+        setSelectedGame(undefined);
+        setShowMore(false);
+        setIsManualMode(false);
+      }
+    } finally {
+      submittingRef.current = false;
+      setIsSubmitting(false);
     }
   }
 
   return (
     <form id={formId} onSubmit={handleSubmit} className="grid gap-5">
+      <fieldset disabled={isSubmitting} className="contents">
       <section className="glass-panel rounded-xl p-4">
         <div className="mb-5">
           <button
@@ -538,7 +536,7 @@ export function GameForm({ editingGame, formId, onSubmit, onCancel, onDirtyChang
         <Button type="button" variant="secondary" onClick={onCancel}>取消</Button>
         <Button type="submit">
           <Check size={18} />
-          {editingGame ? "更新遊戲" : "儲存遊戲"}
+          {isSubmitting ? "儲存中…" : editingGame ? "更新遊戲" : "儲存遊戲"}
         </Button>
         <p className="-mb-1 text-center text-xs leading-5 text-slate-500">
           填寫完成後，請按下方的{editingGame ? "更新遊戲" : "儲存遊戲"}。
@@ -549,6 +547,7 @@ export function GameForm({ editingGame, formId, onSubmit, onCancel, onDirtyChang
           </p>
         ) : null}
       </div>
+      </fieldset>
     </form>
   );
 }

@@ -8,6 +8,7 @@ import {
   replaceStoredGames,
 } from "@/lib/server/gameRepository";
 import type { Game } from "@/types/game";
+import { readJsonBody, RequestBodyTooLargeError } from "@/lib/server/requestBody";
 
 const MAX_SYNC_BYTES = 4_000_000;
 
@@ -45,12 +46,14 @@ export async function PUT(request: Request) {
   let body: { games?: unknown; expectedRevision?: unknown };
 
   try {
-    body = (await request.json()) as { games?: unknown; expectedRevision?: unknown };
-  } catch {
-    return noStoreJson({ error: "invalid_json" }, 400);
+    const value = await readJsonBody(request, MAX_SYNC_BYTES);
+    if (!value || typeof value !== "object" || Array.isArray(value)) return noStoreJson({ error: "invalid_sync_payload" }, 400);
+    body = value;
+  } catch (error) {
+    return noStoreJson({ error: error instanceof RequestBodyTooLargeError ? "payload_too_large" : "invalid_json" }, error instanceof RequestBodyTooLargeError ? 413 : 400);
   }
 
-  if (!Array.isArray(body.games) || !Number.isInteger(body.expectedRevision) || Number(body.expectedRevision) < 0) {
+  if (!Array.isArray(body.games) || !Number.isSafeInteger(body.expectedRevision) || Number(body.expectedRevision) < 0) {
     return noStoreJson({ error: "invalid_sync_payload" }, 400);
   }
 

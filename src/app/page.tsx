@@ -6,6 +6,7 @@ import { DeleteGameDialog } from "@/components/games/DeleteGameDialog";
 import { GameForm } from "@/components/games/GameForm";
 import { GameLibrary } from "@/components/games/GameLibrary";
 import { UnsavedChangesDialog } from "@/components/games/UnsavedChangesDialog";
+import { SyncProblemDialog } from "@/components/games/SyncProblemDialog";
 import { CollectionInsights } from "@/components/insights/CollectionInsights";
 import { AppShell, type AppView } from "@/components/layout/AppShell";
 import { ToastViewport } from "@/components/ui/Toast";
@@ -52,7 +53,7 @@ function loadLibrarySort(context: LibrarySortContext): LibrarySort {
 }
 
 export default function Home() {
-  const { games, isLoading, addGame, updateGame, deleteGame, filterGames } = useGames();
+  const { games, isLoading, isSaving, syncIssue, hasPendingChanges, retrySync, reloadCloud, addGame, updateGame, deleteGame, filterGames } = useGames();
   const { toasts, showToast, dismissToast } = useToast();
   const [activeView, setActiveView] = useState<AppView>("dashboard");
   const [editingGame, setEditingGame] = useState<Game | undefined>();
@@ -62,6 +63,7 @@ export default function Home() {
   const [librarySort, setLibrarySortState] = useState<LibrarySort>(() => loadLibrarySort("library"));
   const [formIsDirty, setFormIsDirty] = useState(false);
   const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
+  const [dismissedSyncIssue, setDismissedSyncIssue] = useState(-1);
   const pendingNavigationRef = useRef<(() => void) | null>(null);
 
   const setLibrarySort = useCallback((sort: LibrarySort) => {
@@ -70,6 +72,7 @@ export default function Home() {
   }, [librarySortContext]);
 
   const navigateWithUnsavedCheck = useCallback((action: () => void) => {
+    if (isSaving) return;
     if (activeView === "form" && formIsDirty) {
       pendingNavigationRef.current = action;
       setShowUnsavedDialog(true);
@@ -77,7 +80,7 @@ export default function Home() {
     }
 
     action();
-  }, [activeView, formIsDirty]);
+  }, [activeView, formIsDirty, isSaving]);
 
   const openAddForm = useCallback(() => {
     setEditingGame(undefined);
@@ -112,18 +115,21 @@ export default function Home() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  function handleSubmit(draft: GameDraft) {
-    if (editingGame) {
-      updateGame(editingGame.id, draft);
-      showToast({ title: "編輯成功", tone: "success" });
-    } else {
-      addGame(draft);
-      showToast({ title: "新增成功", tone: "success" });
+  async function handleSubmit(draft: GameDraft) {
+    try {
+      const result = editingGame ? await updateGame(editingGame.id, draft) : await addGame(draft);
+      showToast({
+        title: result.synced ? result.issue === "cache" ? "已同步雲端，本機離線備份未完成" : "儲存成功，已同步雲端" : "已儲存於此裝置，尚未同步雲端",
+        tone: result.synced && !result.issue ? "success" : "neutral",
+      });
+      setEditingGame(undefined);
+      setFormIsDirty(false);
+      setActiveView("library");
+      return true;
+    } catch {
+      showToast({ title: "儲存失敗，內容仍保留在表單，請稍後重試", tone: "danger" });
+      return false;
     }
-
-    setEditingGame(undefined);
-    setFormIsDirty(false);
-    setActiveView("library");
   }
 
   function handleCancelForm() {
@@ -134,14 +140,18 @@ export default function Home() {
     });
   }
 
-  function handleConfirmDelete() {
-    if (!deletingGame) {
+  async function handleConfirmDelete() {
+    if (!deletingGame || isSaving) {
       return;
     }
 
-    deleteGame(deletingGame.id);
-    showToast({ title: uiTerms.gameDeleted, tone: "danger" });
-    setDeletingGame(undefined);
+    try {
+      const result = await deleteGame(deletingGame.id);
+      showToast({ title: result.synced ? `${uiTerms.gameDeleted}，已同步雲端` : "此裝置已刪除，尚未同步雲端", tone: result.synced ? "success" : "neutral" });
+      setDeletingGame(undefined);
+    } catch {
+      showToast({ title: "刪除未儲存，原資料仍保留，請稍後重試", tone: "danger" });
+    }
   }
 
   function handleConfirmLeaveForm() {
@@ -159,6 +169,7 @@ export default function Home() {
   }
 
   function handleViewChange(view: AppView) {
+    if (isSaving) return;
     if (view === activeView) {
       return;
     }
@@ -186,7 +197,25 @@ export default function Home() {
   }
 
   const isEditingGame = activeView === "form" && editingGame !== undefined;
-  const editFormNavAction = isEditingGame ? { label: "更新遊戲", onClick: submitCurrentGameForm } : undefined;
+  const editFormNavAction = isEditingGame ? { label: isSaving ? "儲存中…" : "更新遊戲", onClick: submitCurrentGameForm, disabled: isSaving } : undefined;
+
+  async function handleRetrySync() {
+    try {
+      const result = await retrySync();
+      showToast({ title: result.synced ? result.issue === "cache" ? "已同步雲端，本機離線備份未完成" : "已同步至雲端" : "尚未同步，修改仍保留於此裝置", tone: result.synced && !result.issue ? "success" : "neutral" });
+    } catch {
+      showToast({ title: "同步未完成，資料未被覆蓋，請稍後重試", tone: "danger" });
+    }
+  }
+
+  async function handleReloadCloud() {
+    try {
+      await reloadCloud();
+      showToast({ title: "已保留本機備份並載入雲端資料", tone: "success" });
+    } catch {
+      showToast({ title: "無法完成備份或讀取雲端，原資料未取代", tone: "danger" });
+    }
+  }
 
   return (
     <AppShell
@@ -229,6 +258,14 @@ export default function Home() {
       ) : null}
       <DeleteGameDialog game={deletingGame} onCancel={() => setDeletingGame(undefined)} onConfirm={handleConfirmDelete} />
       <UnsavedChangesDialog isOpen={showUnsavedDialog} onCancel={handleCancelLeaveForm} onLeave={handleConfirmLeaveForm} />
+      <SyncProblemDialog
+        open={Boolean(syncIssue && syncIssue.id !== dismissedSyncIssue && (games.length > 0 || hasPendingChanges))}
+        issue={syncIssue?.kind ?? "offline"}
+        busy={isSaving}
+        onClose={() => setDismissedSyncIssue(syncIssue?.id ?? -1)}
+        onRetry={handleRetrySync}
+        onReload={handleReloadCloud}
+      />
       <ToastViewport toasts={toasts} onDismiss={dismissToast} />
     </AppShell>
   );

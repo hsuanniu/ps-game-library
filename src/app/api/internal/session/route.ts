@@ -9,6 +9,8 @@ import {
   isSameOriginRequest,
 } from "@/lib/server/apiAuth";
 import { isGameDatabaseConfigured } from "@/lib/server/gameRepository";
+import { consumeLoginAttempt } from "@/lib/server/loginRateLimit";
+import { readJsonBody, RequestBodyTooLargeError } from "@/lib/server/requestBody";
 
 export const dynamic = "force-dynamic";
 
@@ -34,9 +36,21 @@ export async function POST(request: Request) {
   let body: { token?: unknown };
 
   try {
-    body = (await request.json()) as { token?: unknown };
+    const value = await readJsonBody(request, 4096);
+    if (!value || typeof value !== "object" || Array.isArray(value)) return noStoreJson({ error: "invalid_json" }, 400);
+    body = value;
+  } catch (error) {
+    return noStoreJson({ error: error instanceof RequestBodyTooLargeError ? "payload_too_large" : "invalid_json" }, error instanceof RequestBodyTooLargeError ? 413 : 400);
+  }
+
+  try {
+    if (!await consumeLoginAttempt(request, adminToken)) {
+      return NextResponse.json({ error: "login_rate_limited" }, {
+        status: 429, headers: { "Retry-After": "900", "Cache-Control": "private, no-store" },
+      });
+    }
   } catch {
-    return noStoreJson({ error: "invalid_json" }, 400);
+    return noStoreJson({ error: "login_protection_unavailable" }, 503);
   }
 
   if (typeof body.token !== "string" || !hasValidAdminToken(body.token)) {

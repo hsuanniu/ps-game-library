@@ -7,7 +7,7 @@ interface SessionStatus {
   adminAuthConfigured: boolean;
 }
 
-interface SaveResult {
+export interface SaveResult {
   ok: true;
   revision: number;
   updatedAt: string;
@@ -41,16 +41,28 @@ export function deleteCloudSession() {
   });
 }
 
-export function loadCloudGames() {
-  return requestJson<StoredGamesSnapshot>("/api/internal/games");
+export async function loadCloudGames() {
+  const value = await requestJson<StoredGamesSnapshot>("/api/internal/games");
+  if (!Array.isArray(value.games) || typeof value.initialized !== "boolean" || !Number.isSafeInteger(value.revision) || value.revision < 0) {
+    throw new CloudStorageError("invalid_cloud_snapshot", 502);
+  }
+  return value;
 }
 
-export function saveCloudGames(games: Game[], expectedRevision: number) {
-  return requestJson<SaveResult>("/api/internal/games", {
+export async function saveCloudGames(games: Game[], expectedRevision: number) {
+  const body = JSON.stringify({ games, expectedRevision });
+  if (new TextEncoder().encode(body).byteLength > 4_000_000) {
+    return Promise.reject(new CloudStorageError("payload_too_large", 413));
+  }
+  const value = await requestJson<SaveResult>("/api/internal/games", {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ games, expectedRevision }),
+    body,
   });
+  if (value.ok !== true || !Number.isSafeInteger(value.revision) || value.revision <= expectedRevision || typeof value.updatedAt !== "string") {
+    throw new CloudStorageError("invalid_cloud_acknowledgement", 502);
+  }
+  return value;
 }
 
 async function requestJson<T>(url: string, init?: RequestInit) {
@@ -58,12 +70,14 @@ async function requestJson<T>(url: string, init?: RequestInit) {
     ...init,
     credentials: "same-origin",
     cache: "no-store",
+    signal: AbortSignal.timeout(20_000),
   });
-  const body = (await response.json().catch(() => ({}))) as { error?: string } & T;
+  const body = await response.json().catch(() => null) as ({ error?: string } & T) | null;
 
   if (!response.ok) {
-    throw new CloudStorageError(body.error ?? "cloud_storage_error", response.status);
+    throw new CloudStorageError(body?.error ?? "cloud_storage_error", response.status);
   }
 
+  if (!body) throw new CloudStorageError("invalid_cloud_response", 502);
   return body;
 }

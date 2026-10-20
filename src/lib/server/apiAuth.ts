@@ -65,7 +65,7 @@ function getCookie(cookieHeader: string | null, name: string) {
     const [cookieName, ...valueParts] = cookie.trim().split("=");
 
     if (cookieName === name) {
-      return decodeURIComponent(valueParts.join("="));
+      try { return decodeURIComponent(valueParts.join("=")); } catch { return undefined; }
     }
   }
 

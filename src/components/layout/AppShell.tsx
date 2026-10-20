@@ -15,6 +15,7 @@ interface AppShellProps {
   formNavAction?: {
     label: string;
     onClick: () => void;
+    disabled?: boolean;
   };
   children: React.ReactNode;
 }
@@ -75,7 +76,7 @@ export function AppShell({ activeView, onViewChange, subtitle = uiTerms.brandSub
                 key={item.view}
                 type="button"
                 aria-label={label}
-                disabled={isFormInProgress}
+                disabled={isFormInProgress || formAction?.disabled}
                 onClick={isFormAction ? formAction.onClick : () => onViewChange(item.view)}
                 className={cn(
                   "grid h-14 place-items-center rounded-lg text-xs font-semibold transition duration-200 active:scale-[0.97]",

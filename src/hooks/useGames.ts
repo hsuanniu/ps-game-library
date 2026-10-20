@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { isCollectionGame, isWishlistGame } from "@/lib/gameCollection";
 import { CloudStorageError, loadCloudGames, saveCloudGames } from "@/lib/storage/gameCloudStorage";
-import { loadGames, saveGames } from "@/lib/storage/gameStorage";
+import { loadGames, saveGameRecovery, saveGames } from "@/lib/storage/gameStorage";
+import { GameSync, type SyncIssue } from "@/lib/storage/gameSync";
+import { loadSyncMetadata, saveSyncMetadata } from "@/lib/storage/gameSyncMetadata";
 import type { Game, GameDraft, LibraryFilter, LibrarySort } from "@/types/game";
 
 const titleCollator = new Intl.Collator("zh-TW", {
@@ -22,48 +24,29 @@ function makeId() {
 export function useGames() {
   const [games, setGames] = useState<Game[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const cloudRevisionRef = useRef<number | null>(null);
-  const lastCloudSnapshotRef = useRef("");
-  const cloudSaveQueueRef = useRef(Promise.resolve());
+  const [isSaving, setIsSaving] = useState(false);
+  const [hasPendingChanges, setHasPendingChanges] = useState(false);
+  const [syncIssue, setSyncIssue] = useState<{ kind: SyncIssue; id: number } | null>(null);
+  const noticeId = useRef(0);
+  const syncRef = useRef<GameSync | null>(null);
 
   useEffect(() => {
     let cancelled = false;
 
     async function loadInitialGames() {
-      const localGames = loadGames();
-
-      try {
-        const cloudSnapshot = await loadCloudGames();
-
-        if (cancelled) {
-          return;
-        }
-
-        if (cloudSnapshot.initialized) {
-          if (cloudSnapshot.games.length === 0 && localGames.length > 0) {
-            console.error("[Games] Refused to replace a non-empty local library with an empty cloud library");
-            setGames(localGames);
-          } else {
-            cloudRevisionRef.current = cloudSnapshot.revision;
-            lastCloudSnapshotRef.current = JSON.stringify(cloudSnapshot.games);
-            saveGames(cloudSnapshot.games);
-            setGames(cloudSnapshot.games);
-          }
-        } else {
-          setGames(localGames);
-        }
-      } catch (error) {
-        if (!cancelled) {
-          setGames(localGames);
-        }
-
-        if (!(error instanceof CloudStorageError) || ![401, 503].includes(error.status)) {
-          console.error("[Games] Cloud library load failed", error);
-        }
-      } finally {
-        if (!cancelled) {
-          setIsLoading(false);
-        }
+      const sync = new GameSync({
+        loadCloud: loadCloudGames,
+        saveCloud: saveCloudGames,
+        saveLocal: (items, metadata) => saveGames(items) && saveSyncMetadata(metadata),
+        saveRecovery: saveGameRecovery,
+      });
+      await sync.initialize(loadGames(), loadSyncMetadata());
+      if (!cancelled) {
+        syncRef.current = sync;
+        setGames(sync.games);
+        setHasPendingChanges(sync.dirty);
+        setSyncIssue(sync.issue ? { kind: sync.issue, id: ++noticeId.current } : null);
+        setIsLoading(false);
       }
     }
 
@@ -74,46 +57,37 @@ export function useGames() {
     };
   }, []);
 
+  const runSync = useCallback(async <T,>(action: (sync: GameSync) => Promise<T>) => {
+    const sync = syncRef.current;
+    if (!sync) throw new CloudStorageError("library_loading", 503);
+    setIsSaving(true);
+    try {
+      const result = await action(sync);
+      setGames([...sync.games]);
+      setHasPendingChanges(sync.dirty);
+      setSyncIssue(sync.issue ? { kind: sync.issue, id: ++noticeId.current } : null);
+      return result;
+    } finally {
+      setIsSaving(false);
+    }
+  }, []);
+
   useEffect(() => {
-    if (isLoading) {
-      return;
-    }
-
-    saveGames(games);
-
-    if (cloudRevisionRef.current === null) {
-      return;
-    }
-
-    const serializedGames = JSON.stringify(games);
-    if (serializedGames === lastCloudSnapshotRef.current) {
-      return;
-    }
-
-    const gamesToSave = games;
-    cloudSaveQueueRef.current = cloudSaveQueueRef.current
-      .catch(() => undefined)
-      .then(async () => {
-        const currentSerializedGames = JSON.stringify(gamesToSave);
-        if (currentSerializedGames === lastCloudSnapshotRef.current || cloudRevisionRef.current === null) {
-          return;
-        }
-
-        const result = await saveCloudGames(gamesToSave, cloudRevisionRef.current);
-        cloudRevisionRef.current = result.revision;
-        lastCloudSnapshotRef.current = currentSerializedGames;
-      })
-      .catch((error) => {
-        console.error("[Games] Cloud library save failed", error);
-      });
-  }, [games, isLoading]);
+    const resume = () => {
+      if (!isSaving && syncRef.current?.dirty && syncRef.current.issue === "offline") {
+        void runSync((sync) => sync.retry()).catch(() => undefined);
+      }
+    };
+    window.addEventListener("online", resume);
+    return () => window.removeEventListener("online", resume);
+  }, [isSaving, runSync]);
 
   const sortedGames = useMemo(
     () => [...games].sort((a, b) => getGameCreatedTime(b) - getGameCreatedTime(a)),
     [games],
   );
 
-  function addGame(draft: GameDraft) {
+  async function addGame(draft: GameDraft) {
     const now = new Date().toISOString();
     const game: Game = {
       ...draft,
@@ -123,35 +97,17 @@ export function useGames() {
       updatedAt: now,
     };
 
-    setGames((current) => [game, ...current]);
-    return game;
+    return runSync((sync) => sync.mutate((current) => [game, ...current]));
   }
 
-  function updateGame(id: string, draft: GameDraft) {
+  async function updateGame(id: string, draft: GameDraft) {
     const now = new Date().toISOString();
-    let updatedGame: Game | undefined;
-
-    setGames((current) =>
-      current.map((game) => {
-        if (game.id !== id) {
-          return game;
-        }
-
-        updatedGame = {
-          ...game,
-          ...draft,
-          updatedAt: now,
-        };
-
-        return updatedGame;
-      }),
-    );
-
-    return updatedGame;
+    return runSync((sync) => sync.mutate((current) => current.map((game) => game.id === id
+      ? { ...game, ...draft, updatedAt: now } : game)));
   }
 
-  function deleteGame(id: string) {
-    setGames((current) => current.filter((game) => game.id !== id));
+  async function deleteGame(id: string) {
+    return runSync((sync) => sync.mutate((current) => current.filter((game) => game.id !== id)));
   }
 
   function findGame(id: string) {
@@ -199,6 +155,11 @@ export function useGames() {
   return {
     games: sortedGames,
     isLoading,
+    isSaving,
+    syncIssue,
+    hasPendingChanges,
+    retrySync: () => runSync((sync) => sync.retry()),
+    reloadCloud: () => runSync((sync) => sync.loadCloudWithBackup()),
     addGame,
     updateGame,
     deleteGame,

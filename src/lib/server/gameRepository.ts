@@ -51,23 +51,20 @@ export async function getStoredGamesForApi(includeCover = false): Promise<Game[]
     ? await sql`SELECT data FROM my_games_games ORDER BY created_at DESC, id ASC`
     : await sql`SELECT data - 'coverUrl' AS data FROM my_games_games ORDER BY created_at DESC, id ASC`;
 
-  return (rows as GameRow[])
-    .map((row) => parseStoredGame(row.data))
-    .filter((game): game is Game => game !== undefined);
+  return (rows as GameRow[]).map((row) => parseStoredGame(row.data));
 }
 
 export async function getStoredGames(): Promise<StoredGamesSnapshot> {
   const sql = getSqlClient();
   await ensureSchema(sql);
 
-  const [gameRows, stateRows] = await Promise.all([
-    sql`SELECT data FROM my_games_games ORDER BY created_at DESC, id ASC`,
-    sql`SELECT initialized, revision, updated_at FROM my_games_state WHERE id = 'library'`,
-  ]);
+  // Both reads must observe the same committed library revision.
+  const [gameRows, stateRows] = await sql.transaction((tx) => [
+    tx`SELECT data FROM my_games_games ORDER BY created_at DESC, id ASC`,
+    tx`SELECT initialized, revision, updated_at FROM my_games_state WHERE id = 'library'`,
+  ], { isolationLevel: "RepeatableRead", readOnly: true });
 
-  const games = (gameRows as GameRow[])
-    .map((row) => parseStoredGame(row.data))
-    .filter((game): game is Game => game !== undefined);
+  const games = (gameRows as GameRow[]).map((row) => parseStoredGame(row.data));
   const state = (stateRows as StateRow[])[0];
 
   return {
@@ -82,7 +79,7 @@ export async function replaceStoredGames(games: Game[], expectedRevision: number
   const sql = getSqlClient();
   await ensureSchema(sql);
 
-  if (!games.every(isValidGame)) {
+  if (!games.every(isValidGame) || new Set(games.map((game) => game.id)).size !== games.length) {
     throw new TypeError("Invalid game data");
   }
 
@@ -124,7 +121,10 @@ export async function replaceStoredGames(games: Game[], expectedRevision: number
       `),
     ],
     { isolationLevel: "Serializable" },
-  );
+  ).catch((error) => {
+    if (error?.code === "40001" || error?.code === "40P01") throw new GameSyncConflictError();
+    throw error;
+  });
 
   const revisionRows = transactionResults[0] as Array<{ revision: number | string }>;
   const revision = revisionRows[0]?.revision;
@@ -147,7 +147,7 @@ export async function replaceStoredGames(games: Game[], expectedRevision: number
   };
 }
 
-function getSqlClient() {
+export function getSqlClient() {
   const databaseUrl = process.env.DATABASE_URL?.trim();
 
   if (!databaseUrl) {
@@ -194,13 +194,10 @@ function ensureSchema(sql: SqlClient) {
   });
 }
 
-function parseStoredGame(value: Game | string) {
-  try {
-    const game = typeof value === "string" ? JSON.parse(value) : value;
-    return isValidGame(game) ? game : undefined;
-  } catch {
-    return undefined;
-  }
+function parseStoredGame(value: Game | string): Game {
+  const game = typeof value === "string" ? JSON.parse(value) : value;
+  if (!isValidGame(game)) throw new TypeError("Stored library contains invalid game data; refusing an incomplete snapshot");
+  return game;
 }
 
 function isValidGame(value: unknown): value is Game {

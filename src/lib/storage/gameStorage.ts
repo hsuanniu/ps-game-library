@@ -1,7 +1,9 @@
 import type { Game } from "@/types/game";
+import type { SyncMetadata } from "@/lib/storage/gameSync";
 
 const STORAGE_KEY = "ps-game-library:v1";
 const BACKUP_STORAGE_KEY = "ps-game-library:backup:v1";
+const RECOVERY_PREFIX = "ps-game-library:recovery:v1:";
 const legacySeedGameIds = new Set([
   "seed-astro-bot",
   "seed-ff7-rebirth",
@@ -18,18 +20,24 @@ export function loadGameBackup(): Game[] {
 
 export function saveGames(games: Game[]) {
   if (typeof window === "undefined") {
-    return;
+    return false;
   }
 
   const serializedGames = JSON.stringify(games);
   const currentGames = loadStoredGames(STORAGE_KEY, false);
   const serializedCurrentGames = JSON.stringify(currentGames);
 
-  if (currentGames.length > 0 && serializedCurrentGames !== serializedGames) {
-    window.localStorage.setItem(BACKUP_STORAGE_KEY, serializedCurrentGames);
-  }
+  try {
+    if (currentGames.length > 0 && serializedCurrentGames !== serializedGames) {
+      window.localStorage.setItem(BACKUP_STORAGE_KEY, serializedCurrentGames);
+    }
 
-  window.localStorage.setItem(STORAGE_KEY, serializedGames);
+    window.localStorage.setItem(STORAGE_KEY, serializedGames);
+    return true;
+  } catch {
+    // A failed cache/backup must not prevent a separate cloud save.
+    return false;
+  }
 }
 
 export function restoreGameBackup() {
@@ -44,6 +52,21 @@ export function restoreGameBackup() {
 
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(backupGames));
   return backupGames;
+}
+
+export function saveGameRecovery(games: Game[], metadata: SyncMetadata) {
+  try {
+    const key = `${RECOVERY_PREFIX}${metadata.fingerprint}`;
+    // Conflict recovery copies are immutable, separate from the rolling cache backup.
+    if (!window.localStorage.getItem(key)) {
+      window.localStorage.setItem(key, JSON.stringify({
+        games, ...metadata, savedAt: new Date().toISOString(),
+      }));
+    }
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function loadStoredGames(storageKey: string, migrateLegacySeeds: boolean): Game[] {
@@ -65,7 +88,11 @@ function loadStoredGames(storageKey: string, migrateLegacySeeds: boolean): Game[
     const games = migrateLegacySeeds ? parsed.filter((game) => !legacySeedGameIds.has(game?.id)) : parsed;
 
     if (migrateLegacySeeds && games.length !== parsed.length) {
-      window.localStorage.setItem(storageKey, JSON.stringify(games));
+      try {
+        window.localStorage.setItem(storageKey, JSON.stringify(games));
+      } catch {
+        // Keep readable games even when the browser refuses a cache write.
+      }
     }
 
     return games;

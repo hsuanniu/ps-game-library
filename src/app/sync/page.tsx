@@ -267,6 +267,9 @@ function getErrorMessage(error: unknown) {
     return "管理密碼不正確。";
   }
 
+  if (error.code === "login_rate_limited") return "登入嘗試過多，請等待 15 分鐘後再試。";
+  if (error.code === "login_protection_unavailable") return "登入保護暫時無法連線，請稍後再試。";
+
   if (error.code === "database_not_configured" || error.code === "admin_auth_not_configured") {
     return "伺服器環境變數尚未設定完成。";
   }
