@@ -57,18 +57,20 @@ export async function POST(request: Request) {
     return noStoreJson({ error: "invalid_admin_token" }, 401);
   }
 
-  const response = noStoreJson({ authenticated: true });
-  response.cookies.set({
-    name: ADMIN_SESSION_COOKIE,
-    value: createAdminSessionValue(adminToken),
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
-    path: "/",
-    maxAge: ADMIN_SESSION_MAX_AGE,
-  });
+  return authenticatedSessionResponse(adminToken);
+}
 
-  return response;
+export function PATCH(request: Request) {
+  if (!isSameOriginRequest(request)) {
+    return noStoreJson({ error: "invalid_origin" }, 403);
+  }
+
+  const adminToken = process.env.GAMES_ADMIN_TOKEN?.trim();
+  if (!adminToken || !hasValidAdminSession(request)) {
+    return noStoreJson({ error: "admin_session_required" }, 401);
+  }
+
+  return authenticatedSessionResponse(adminToken);
 }
 
 export function DELETE(request: Request) {
@@ -87,6 +89,20 @@ export function DELETE(request: Request) {
     maxAge: 0,
   });
 
+  return response;
+}
+
+function authenticatedSessionResponse(adminToken: string) {
+  const response = noStoreJson({ authenticated: true });
+  response.cookies.set({
+    name: ADMIN_SESSION_COOKIE,
+    value: createAdminSessionValue(adminToken),
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+    path: "/",
+    maxAge: ADMIN_SESSION_MAX_AGE,
+  });
   return response;
 }
 

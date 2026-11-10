@@ -92,6 +92,71 @@ test("malformed cookies do not crash authentication", () => {
   assert.equal(hasValidAdminSession(new Request("https://example.test", { headers: { cookie: "my-games-admin-session=%ZZ" } })), false);
 });
 
+test("same-origin session renewal resets the existing browser cookie to 365 days", async () => {
+  const route = sessionHarness(async () => true);
+  const signedIn = await route.POST(login(JSON.stringify({ token: process.env.GAMES_ADMIN_TOKEN })));
+  const cookie = signedIn.headers.get("set-cookie").split(";", 1)[0];
+  const request = new Request("https://example.test/api/internal/session", {
+    method: "PATCH", headers: { origin: "https://example.test", cookie },
+  });
+  const renewed = route.PATCH(request);
+  assert.equal(renewed.status, 200);
+  assert.deepEqual(await renewed.json(), { authenticated: true });
+  assert.equal(renewed.headers.get("set-cookie").split(";", 1)[0], cookie);
+  assert.match(renewed.headers.get("set-cookie"), /Max-Age=31536000/);
+  assert.match(renewed.headers.get("set-cookie"), /HttpOnly/);
+  assert.match(renewed.headers.get("set-cookie"), /SameSite=strict/);
+  assert.match(renewed.headers.get("cache-control"), /no-store/);
+});
+
+test("session renewal cannot issue a cookie without an existing valid same-origin session", async () => {
+  const route = sessionHarness(async () => true);
+  const signedIn = await route.POST(login(JSON.stringify({ token: process.env.GAMES_ADMIN_TOKEN })));
+  const validCookie = signedIn.headers.get("set-cookie").split(";", 1)[0];
+  for (const [headers, status] of [
+    [{ origin: "https://example.test" }, 401],
+    [{ origin: "https://example.test", cookie: "my-games-admin-session=invalid" }, 401],
+    [{ origin: "https://elsewhere.test", cookie: validCookie }, 403],
+    [{ cookie: validCookie }, 403],
+  ]) {
+    const response = route.PATCH(new Request("https://example.test/api/internal/session", { method: "PATCH", headers }));
+    assert.equal(response.status, status);
+    assert.equal(response.headers.get("set-cookie"), null);
+  }
+});
+
+test("opening or resuming the app refreshes the session only in the foreground", async () => {
+  const document = Object.assign(new EventTarget(), { visibilityState: "visible" });
+  const window = new EventTarget();
+  const original = { document: globalThis.document, window: globalThis.window };
+  let refreshes = 0;
+  let cleanup;
+  const { AdminSessionRefresh } = loadTs("src/components/layout/AdminSessionRefresh.tsx", {
+    react: { useEffect: (effect) => { cleanup = effect(); } },
+    "@/lib/storage/gameCloudStorage": { refreshCloudSession: async () => { refreshes++; } },
+  });
+  const settle = () => new Promise(setImmediate);
+  Object.assign(globalThis, { document, window });
+  try {
+    AdminSessionRefresh();
+    assert.equal(refreshes, 1);
+    await settle();
+    document.visibilityState = "hidden";
+    document.dispatchEvent(new Event("visibilitychange"));
+    assert.equal(refreshes, 1);
+    document.visibilityState = "visible";
+    document.dispatchEvent(new Event("visibilitychange"));
+    window.dispatchEvent(Object.assign(new Event("pageshow"), { persisted: true }));
+    assert.equal(refreshes, 2);
+    await settle();
+    cleanup();
+    document.dispatchEvent(new Event("visibilitychange"));
+    assert.equal(refreshes, 2);
+  } finally {
+    Object.assign(globalThis, original);
+  }
+});
+
 test("internal writes enforce actual byte limits and reject invalid JSON shapes", async () => {
   let writes = 0;
   const route = loadTs("src/app/api/internal/games/route.ts", {

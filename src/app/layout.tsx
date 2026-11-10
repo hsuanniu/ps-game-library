@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { AdminSessionRefresh } from "@/components/layout/AdminSessionRefresh";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -37,7 +38,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="zh-Hant">
-      <body>{children}</body>
+      <body>
+        <AdminSessionRefresh />
+        {children}
+      </body>
     </html>
   );
 }

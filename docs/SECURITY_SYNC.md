@@ -47,6 +47,7 @@
 ## 登入與請求限制
 
 - 沿用既有 GAMES_ADMIN_TOKEN、GAMES_API_TOKEN 與管理 Cookie，不重設憑證。
+- 開啟 My Games 或回到前景時，仍登入的瀏覽器會透過同源請求重新取得 365 天的管理 Cookie。沒有登入或 Cookie 已被瀏覽器清除時，不會自動登入。這是瀏覽器保存期限的續期，不新增伺服器端的到期與撤銷機制。
 - 管理登入使用 Neon 原子計數，同一來源 15 分鐘最多 10 次，跨 Vercel 冷啟動共用。
 - 超限回傳 429 與 Retry-After；計數服務不可用時回傳 503，不跳過登入保護。
 - Vercel 僅信任其平台提供的 x-vercel-forwarded-for，資料庫只儲存來源的 HMAC，不儲存原始 IP 或 Token。

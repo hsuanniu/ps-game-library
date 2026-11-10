@@ -41,6 +41,10 @@ export function deleteCloudSession() {
   });
 }
 
+export function refreshCloudSession() {
+  return requestJson<{ authenticated: true }>("/api/internal/session", { method: "PATCH" });
+}
+
 export async function loadCloudGames() {
   const value = await requestJson<StoredGamesSnapshot>("/api/internal/games");
   if (!Array.isArray(value.games) || typeof value.initialized !== "boolean" || !Number.isSafeInteger(value.revision) || value.revision < 0) {
